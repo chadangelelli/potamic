@@ -91,7 +91,6 @@
   ([queue-name conn {:keys [group id]}]
    (let [group-name (or group (-set-default-group-name queue-name))
          init-id (or id 0)
-         ;;TODO: handle error
          [stream-initialized? ?err] (-initialize-stream conn
                                                         queue-name
                                                         group-name
