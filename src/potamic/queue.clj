@@ -70,7 +70,7 @@
 ;;TODO: enforce that group-name is a keyword (allow namespaces)
 (defn create-queue
   "Creates a queue. If no options are provided, `:group` defaults to
-  `QUEUE-NAME-group`. Returns vector of `[?queue-spec ?err]`.
+  `QUEUE-NAME-group`. Returns vector of `[ok? ?err]`.
 
   **Examples:**
 
