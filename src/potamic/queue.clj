@@ -103,6 +103,11 @@
             nil])
        [nil ?err]))))
 
+;;TODO: Implement (reverse of create-queue)
+(defn delete-queue
+  []
+  )
+
 (defn put
   "Put a message onto named queue.
 
