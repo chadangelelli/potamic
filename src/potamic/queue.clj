@@ -96,9 +96,14 @@
                                                         group-name
                                                         init-id)]
      (if stream-initialized?
-       (do (swap! queues_ assoc queue-name {:queue-name queue-name
-                                            :queue-conn conn
-                                            :group-name group-name})
+       (do (swap! queues_
+                  assoc
+                  queue-name
+                  {:queue-name queue-name
+                   :queue-conn conn
+                   :group-name group-name
+                   :redis-queue-name (make-redis-name queue-name)
+                   :redis-group-name (make-redis-name group-name)})
            [(get-queue queue-name)
             nil])
        [nil ?err]))))
@@ -109,25 +114,57 @@
   )
 
 (defn put
-  "Put a message onto named queue.
+  "Put a message onto named queue. Returns vector of `[ok? ?err]`.
 
   **Examples:**
 
   ```clojure
-  ;; the following 3 lines are identical
+  ;; the following lines are identical
   (put :my/queue {:a 1 :b 2 :c 3})
   (put :my/queue :* {:a 1 :b 2 :c 3})
   (put :my/queue \"*\" {:a 1 :b 2 :c 3})
+  (put :my/queue '* {:a 1 :b 2 :c 3})
 
-  (put :my/queue 12345667-0 {:a 1 :b 2 :c 3})
+  ;;TODO: update this fake example
+  (put :my/queue 123456789-0 {:a 1 :b 2 :c 3})
   ```
 
   See also:
   "
   ([queue-name kvs] (put queue-name "*" kvs))
   ([queue-name id kvs]
-   )
-  )
+   (let [{qname :redis-queue-name conn :queue-conn} (get-queue queue-name)
+         id* (or id "*")
+         kvs* (reduce into [] kvs)]
+     (try
+       [true (when (= "OK"
+                      (wcar conn (apply car/xadd qname id* kvs*)))
+               nil)]
+       (catch Throwable t
+         [nil (Throwable->map t)])))))
+
+;;TODO: validate input
+;;TODO: validate `:from` as a valid `queue-name`
+;;TODO: confirm `:as` to be arbitrary
+(defn consume
+  "Consumes message(s) from `queue-name`. Returns vector of `[?msgs ?err]`.
+
+  _NOTE_: Consumers are responsible for declaring a message \"done\". That is,
+  to call `(potamic.queue/set-message-state :done)`.
+
+  **Examples:**
+
+  ```clojure
+  (consume 1 :from :my/queue :as :my/consumer1)
+  ```
+
+  See also:
+  "
+  [n-msgs & {:keys [from as]}]
+  (let [{qname :redis-queue-name conn :queue-conn} (get-queue from)]
+    [qname n-msgs conn as]
+    ))
+
 
 (defn create-consumer
   [{:keys [queue-name frequency]}]
