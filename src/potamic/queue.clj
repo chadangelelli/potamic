@@ -178,6 +178,25 @@
        (catch Throwable t
          [nil (Throwable->map t)])))))
 
+;;TODO: optimize key-fn algorithm
+(defn- -make-read-result
+  "Return lazy sesquence of messages for `read*` functions.
+
+  **Examples:**
+
+  ```clojure
+  ```
+
+  See also:
+  "
+  [r]
+  (map (fn [[id msg-kvs]]
+         {:id id
+          :msg (->> (apply hash-map msg-kvs)
+                    (map (fn [[k v]] [(util/<-str k) v]))
+                    (into {}))})
+       r))
+
 ;;TODO: validate input
 ;;TODO: validate `:from` as a valid `queue-name`
 ;;TODO: confirm `:as` to be arbitrary
@@ -228,8 +247,11 @@
                   (when (not= consume :all) [:count consume])
                   [:streams qname ">"]]
             cmd (reduce (fn [o x] (if x (into o x) o)) [] args)
-            r (wcar conn (apply car/xreadgroup cmd))]
-        [r nil])
+            res (-> (wcar conn (apply car/xreadgroup cmd))
+                    first
+                    second
+                    -make-read-result)]
+        [res nil])
       (catch Throwable t
         [nil (Throwable->map t)]))))
 

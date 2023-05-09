@@ -10,6 +10,8 @@
 
 (def conn (db/make-conn {:uri "redis://localhost:6379/0"}))
 
+(def id-pat #"\d+-\d+")
+
 (defn prime-db
   [f]
   (wcar conn (car/flushall))
@@ -92,21 +94,37 @@
       (let [[?ids ?err] (q/put :my/test-queue {:a 1})]
         (is (nil? ?err))
         (is (= (count ?ids) 1))
-        (is (re-find #"\d+-\d+" (first ?ids)))))
+        (is (re-find id-pat (first ?ids)))))
     (testing "-- multi put"
       (let [[?ids ?err] (q/put :my/test-queue {:a 1} {:b 2} {:c 3})]
         (is (nil? ?err))
         (is (= (count ?ids) 3))
-        (is (every? identity (mapv #(re-find #"\d+-\d+" %) ?ids)))))
+        (is (every? identity (mapv #(re-find id-pat %) ?ids)))))
     )) ; end put-test
 
 ;;;; __________________________________________________ READER
 
-(deftest read-test
-  (testing "potamic.queue/read"
-    (is (= 1 1))
-
-    )) ; end read-test
+(deftest read-next-test
+  (testing "potamic.queue/read-next"
+    (let [[?ids ?err] (q/put :my/test-queue {:a 1} {:b 2} {:c 3})]
+      (is (nil? ?err))
+      (is (= (count ?ids) 3))
+      (is (every? identity (mapv #(re-find id-pat %) ?ids))))
+    (testing "-- read-next 1"
+      (let [[?msgs ?e] (q/read-next 1 :from :my/test-queue :as :my/consumer1)]
+        (is (nil? ?e))
+        (is (= 1 (count ?msgs)))
+        (is (re-find id-pat (:id (first ?msgs))))
+        (is (= (:msg (first ?msgs)) {:a "1"}))))
+    (testing "-- read-next :all"
+      (let [[?msgs ?e] (q/read-next 2 :from :my/test-queue :as :my/consumer1)]
+        (is (nil? ?e))
+        (is (= 2 (count ?msgs)))
+        (is (re-find id-pat (:id (first ?msgs))))
+        (is (re-find id-pat (:id (second ?msgs))))
+        (is (= (:msg (first ?msgs)) {:b "2"}))
+        (is (= (:msg (second ?msgs)) {:c "3"}))))
+    )) ; end read-next-test
 
 ;;TODO: add test
 (deftest create-reader-test
