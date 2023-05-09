@@ -9,5 +9,3 @@
   [{:keys [uri pool]}]
   {:uri uri
    :pool (or pool {})})
-
-
