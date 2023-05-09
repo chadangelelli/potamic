@@ -5,7 +5,8 @@
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [taoensso.carmine :as car :refer [wcar]]
             [potamic.db :as db]
-            [potamic.queue :as q]))
+            [potamic.queue :as q]
+            [potamic.util :as util]))
 
 (def conn (db/make-conn {:uri "redis://localhost:6379/0"}))
 
@@ -81,7 +82,7 @@
                        'a.b/c.d "a.b/c.d"
                        "a.b/c.d" "a.b/c.d"}]
       (doseq [[x check] should-pass]
-        (is (= (q/->str x) check)))
+        (is (= (util/->str x) check)))
       ))) ; end ->str-test
 
 ;;TODO: add error tests
@@ -98,7 +99,6 @@
         (is (= (count ?ids) 3))
         (is (every? identity (mapv #(re-find #"\d+-\d+" %) ?ids)))))
     )) ; end put-test
-
 
 ;;;; __________________________________________________ READER
 

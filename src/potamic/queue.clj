@@ -1,8 +1,10 @@
 (ns potamic.queue
   "Implements a stream-based message queue over Redis."
   (:refer-clojure :exclude [read])
-  (:require [malli.core :as malli]
-            [taoensso.carmine :as car :refer [wcar]]))
+  (:require [clojure.string :as string]
+            [malli.core :as malli]
+            [taoensso.carmine :as car :refer [wcar]]
+            [potamic.util :as util]))
 
 (def ^:private
   queues_
@@ -68,34 +70,6 @@
      :else
      (get @queues_ x))))
 
-(defn ->str
-  "Returns a string representation of symbol. This is similar to calling `str`
-  on a symbol except that keywords will not contain a preceding colon
-  character. The keyword `:x/y` will yield \"x/y\" instead of \":x/y\".
-
-  **Examples:**
-
-  ```clojure
-  (require '[potamic.queue :as q])
-
-  (q/->str :my/queue \"my/queue\")
-  ;= \"my/queue\"
-
-  (q/->str 'my/queue \"my/queue\")
-  ;= \"my/queue\"
-
-  (q/->str \"my/queue\" \"my/queue\")
-  ;= \"my/queue\"
-  ```
-
-  See also:
-  "
-  [x]
-  (cond
-    (string? x) x
-    (keyword? x) (subs (str x) 1)
-    :else (str x)))
-
 ;;TODO: add validation
 (def Valid-Create-Queue-Opts
   (malli/schema
@@ -112,8 +86,8 @@
     [true (when (= "OK"
                    (wcar conn
                          (car/xgroup-create
-                           (->str queue-name)
-                           (->str group-name)
+                           (util/->str queue-name)
+                           (util/->str group-name)
                            init-id
                            :mkstream)))
             nil)]
@@ -160,16 +134,16 @@
                   {:queue-name queue-name
                    :queue-conn conn
                    :group-name group-name
-                   :redis-queue-name (->str queue-name)
-                   :redis-group-name (->str group-name)})
+                   :redis-queue-name (util/->str queue-name)
+                   :redis-group-name (util/->str group-name)})
            [true nil])
        [nil ?err]))))
 
 (defn put
   "Put a message onto a queue. Returns vector of `[?msg-ids ?err]`.
 
-  _NOTE_: Because `put` can add more than one message, `?msg-ids` will always
-  be a vector of ID strings.
+  _NOTE_: Because `put` can add more than one message, on success `?msg-ids`
+  will always be a vector of ID strings (or `nil` on fail).
 
   **Examples:**
 
@@ -179,9 +153,11 @@
   (put :my/queue :* {:a 1 :b 2 :c 3})
   (put :my/queue \"*\" {:a 1 :b 2 :c 3})
   (put :my/queue '* {:a 1 :b 2 :c 3})
+  ;= [[\"1683660166747-0\"] nil]
 
-  ;;TODO: update this fake example
-  (put :my/queue 123456789-0 {:a 1 :b 2 :c 3})
+  ;;TODO: add example for multi-put
+
+  ;;TODO: add example of manually setting ID
   ```
 
   See also:
@@ -192,7 +168,7 @@
    (let [{qname :redis-queue-name conn :queue-conn} (get-queue queue-name)
          x id-or-msg1
          id-set? (or (string? x) (symbol? x))
-         id (if id-set? (->str x) "*")
+         id (if id-set? (util/->str x) "*")
          msgs* (into [] (if id-set? msgs (conj msgs x)))]
      (try
        [(wcar conn
@@ -206,12 +182,13 @@
 ;;TODO: validate `:from` as a valid `queue-name`
 ;;TODO: confirm `:as` to be arbitrary
 (defn read-next
-  "Reads next message(s) from a queue as group. Returns vector of `[?msgs ?err]`.
+  "Reads next message(s) from a queue as consumer for queue group.
+  Returns vector of `[?msgs ?err]`.
 
   `?msgs` is of the form:
 
   ```clojure
-  [{:id MSG_ID :msg MSG} ..]
+  [{:id ID :msg MSG} {:id ID :msg MSG} ..]
   ```
 
   _NOTE_: `Readers` are responsible for declaring messages \"processed\".
@@ -226,10 +203,13 @@
   (def conn (db/make-conn {:uri \"redis://localhost:6379/0\"}))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
-  (read-next 1 :from :my/queue :as :my/queue-group)
+  (q/put :my/queue {:a 1} {:b 2} {:c 3})
+  ;= [[\"1683661383518-0\" \"1683661383518-1\" \"1683661383518-2\"] nil]
 
-  (read-next :all :from :my/queue :as :my/queue-group :block 2000)
-  (read-next :all :from :my/queue :as :my/queue-group :block [2 :seconds])
+  (read-next 1 :from :my/queue :as :my/consumer1)
+
+  (read-next :all :from :my/queue :as :my/consumer1 :block 2000)
+  (read-next :all :from :my/queue :as :my/consumer1 :block [2 :seconds])
   ;=
   ```
 
@@ -243,13 +223,11 @@
          group :redis-group-name
          conn :queue-conn} (get-queue from)]
     (try
-      (let [args [[:group group (->str as)]
+      (let [args [[:group group (util/->str as)]
                   (when block [:block block])
                   (when (not= consume :all) [:count consume])
                   [:streams qname ">"]]
             cmd (reduce (fn [o x] (if x (into o x) o)) [] args)
-            _ (println "----> args:" args)
-            _ (println "----> cmd:" cmd)
             r (wcar conn (apply car/xreadgroup cmd))]
         [r nil])
       (catch Throwable t
