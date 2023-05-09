@@ -50,3 +50,44 @@
     (if (Character/isDigit (first x))
       x
       (keyword x))))
+
+;;TODO: write input validation
+(defn time->milliseconds
+  "Converts high-level time syntax (e.g. `[5 :seconds]`) to milliseconds.
+  If `t` is an integer, or if `:milli`/`millis` is provided as `interval`,
+  it is returned as-is. Returns an integer for milliseconds.
+
+  | Intervals            |
+  | -------------------- |
+  | `:milli`/`:millis`   |
+  | `:second`/`:seconds` |
+  | `:minute`/`:minutes` |
+  | `:hour`/`:hours`     |
+
+  **Examples:**
+
+  ```clojure
+  (util/time->milliseconds [5 :seconds])
+  ;= 5000
+
+  (util/time->milliseconds [1 :second])
+  ;= 1000
+
+  (util/time->milliseconds [5 :hours])
+  ;= 18000000
+
+  (util/time->milliseconds [1234 :millis])
+  ;= 1234
+
+  (util/time->milliseconds 1234))
+  ;= 1234
+  ```"
+  [t]
+  (if (vector? t)
+    (let [[n interval] t]
+      (case interval
+        (:milli :millis) n
+        (:second :seconds) (* n 1000)
+        (:minute :minutes) (* n 1000 60)
+        (:hour :hours) (* n 1000 60 60)))
+    t))

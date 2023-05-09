@@ -255,7 +255,6 @@
       (catch Throwable t
         [nil (Throwable->map t)]))))
 
-
 (defn create-reader
   "Creates a `Reader` that reads n-number of messages at an interval.
   Returns vector of `[?rdr ?err]` where `?rdr` is a running `Reader`
@@ -309,7 +308,15 @@
   (q/create-queue :my/queue conn)
   ;= [true nil]
 
-  (def rdr (q/create-reader conn :my/queue {:consume 1 :every 2000}))
+  (def rdr (q/create-reader {:queue :my/queue
+                             :consume 1
+                             :every 2000
+                             :as :my/consumer1}))
+
+  (def rdr (q/create-reader {:queue :my/queue
+                             :consume 1
+                             :every [2 :seconds]
+                             :as :my/consumer1}))
 
   (get-reader rdr)
   ;= TODO: add output
