@@ -1,5 +1,7 @@
 (ns user
-  (:require [clojure.tools.namespace.repl :as ns-repl]))
+  "nREPL config"
+  (:require [clojure.tools.namespace.repl :as ns-repl]
+            [clojure.repl :refer [dir doc]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; format
 
