@@ -11,13 +11,13 @@
   ```clojure
   (require '[potamic.queue :as q])
 
-  (q/->str :my/queue \"my/queue\")
+  (q/->str :my/queue)
   ;= \"my/queue\"
 
-  (q/->str 'my/queue \"my/queue\")
+  (q/->str 'my/queue)
   ;= \"my/queue\"
 
-  (q/->str \"my/queue\" \"my/queue\")
+  (q/->str \"my/queue\")
   ;= \"my/queue\"
   ```
 
