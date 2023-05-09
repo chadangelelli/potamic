@@ -9,12 +9,12 @@
   **Examples:**
 
   ```clojure
-  (require '[potamic.queue :as q])
+  (require '[potamic.util :as util])
 
   ;; all of the following are identical
-  (q/->str :my/queue)
-  (q/->str 'my/queue)
-  (q/->str \"my/queue\")
+  (util/->str :my/queue)
+  (util/->str 'my/queue)
+  (util/->str \"my/queue\")
   ;= \"my/queue\"
   ```
 
