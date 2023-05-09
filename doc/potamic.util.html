@@ -5,13 +5,10 @@
 <p><strong>Examples:</strong></p>
 <pre><code class="language-clojure">(require '[potamic.queue :as q])
 
-(q/-&gt;str :my/queue "my/queue")
-;= "my/queue"
-
-(q/-&gt;str 'my/queue "my/queue")
-;= "my/queue"
-
-(q/-&gt;str "my/queue" "my/queue")
+;; all of the following are identical
+(q/-&gt;str :my/queue)
+(q/-&gt;str 'my/queue)
+(q/-&gt;str "my/queue")
 ;= "my/queue"
 </code></pre>
 <p>See also:</p>

@@ -11,12 +11,9 @@
   ```clojure
   (require '[potamic.queue :as q])
 
+  ;; all of the following are identical
   (q/->str :my/queue)
-  ;= \"my/queue\"
-
   (q/->str 'my/queue)
-  ;= \"my/queue\"
-
   (q/->str \"my/queue\")
   ;= \"my/queue\"
   ```
