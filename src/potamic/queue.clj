@@ -119,9 +119,8 @@
   See also:
   "
   ([queue-name conn] (create-queue queue-name conn {}))
-  ([queue-name conn {:keys [group id]}]
+  ([queue-name conn {:keys [group init-id] :or {init-id 0}}]
    (let [group-name (or group (-set-default-group-name queue-name))
-         init-id (or id 0)
          [stream-initialized? ?err] (-initialize-stream conn
                                                         queue-name
                                                         group-name
@@ -343,8 +342,8 @@
   [{:id ID :msg MSG} {:id ID :msg MSG} ..]
   ```
 
-  _NOTE_: `Readers` are responsible for declaring messages \"processed\".
-  That is, to call `(potamic.queue/set-processed! :processed)`.
+  _NOTE_: `Readers` are responsible for declaring messages \"processed\"
+  by calling `potamic.queue/set-processed!`.
 
   **Examples:**
 
