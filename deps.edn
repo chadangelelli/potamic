@@ -4,6 +4,7 @@
   com.taoensso/timbre       {:mvn/version "5.1.2"}
   com.fzakaria/slf4j-timbre {:mvn/version "0.3.21"}
   io.aviso/pretty           {:mvn/version "1.4"}
+  com.rpl/specter           {:mvn/version "1.1.4"}
   ;; ...................................................... validation
   metosin/malli             {:mvn/version "0.5.1"}
   ;; ...................................................... db
@@ -24,6 +25,7 @@
   :test {:__usage__ "clj -M:test"
          :main-opts ["-m" "kaocha.runner"]
          :extra-deps {lambdaisland/kaocha {:mvn/version "1.71.1119"}
+                      ;;TODO: look at removing kaocha-noyoda
                       kaocha-noyoda/kaocha-noyoda {:mvn/version "2019-06-03"}
                       org.clojure/test.check {:mvn/version "1.1.1"}
                       babashka/fs {:mvn/version "0.2.12"}}}

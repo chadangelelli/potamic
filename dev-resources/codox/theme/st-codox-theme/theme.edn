@@ -1,5 +1,5 @@
 {:transforms
- [[:head] 
+ [[:head]
   [:append
    [:link {:rel "stylesheet", :type "text/css" :href "css/highlight.css"}]
    [:link {:id "theme-style" :rel "stylesheet", :type "text/css" :href "css/theme-light.css"}]
@@ -12,12 +12,12 @@
    ;; [:link {:rel "stylesheet", :type "text/css" :href "css/highlight-nord.css"}]
 
   [:#header]
-  [:append 
+  [:append
    [:div#theme-selector
     [:span.theme-label "Theme"]
     [:div#select-theme-light.select-theme "Light"]
     [:div#select-theme-dark.select-theme "Dark"]]]]
- 
+
  :resources
  ["css/highlight-googlecode.css"
   "css/theme-light.css"

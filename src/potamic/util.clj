@@ -1,5 +1,6 @@
 (ns potamic.util
-  "Common utilities.")
+  "Common utilities."
+  (:require [com.rpl.specter :as s]))
 
 (defn ->str
   "Returns a string representation of symbol. This is similar to calling `str`
@@ -88,3 +89,31 @@
         (:minute :minutes) (* n 1000 60)
         (:hour :hours) (* n 1000 60 60)))
     t))
+
+(defn ->int
+  "Returns string `s` parsed to integer.
+
+  **Examples:**
+  ```clojure
+  ```
+
+  See also:
+  "
+  [s]
+  (Integer/parseInt s))
+
+(defn prep-cmd
+  "Returns concatenated vector of arguments (without using concat) to be
+ applied to a Carmine/Redis command.
+
+  **Examples:**
+
+  ```clojure
+  ```
+
+  See also:
+  "
+  [args]
+  (->> args
+       (reduce (fn [o x] (if x (into o x) o)) [])
+       (s/transform [s/ALL #(or (symbol? %) (keyword? %))] ->str)))

@@ -1,8 +1,7 @@
 (ns potamic.queue
   "Implements a stream-based message queue over Redis."
   (:refer-clojure :exclude [read])
-  (:require [clojure.string :as string]
-            [malli.core :as malli]
+  (:require [malli.core :as malli]
             [taoensso.carmine :as car :refer [wcar]]
             [potamic.util :as util]))
 
@@ -78,7 +77,7 @@
 
 (defn- -set-default-group-name
   [queue-name]
-  (-> queue-name str (subs 1) (str "-group") keyword))
+  (keyword (str (subs (str queue-name) 1) "-group")))
 
 (defn- -initialize-stream
   [conn queue-name group-name init-id]
@@ -139,41 +138,61 @@
            [true nil])
        [nil ?err]))))
 
+;;TODO: add input validation for ID/MSG pairs and/or wildcar IDs for multi
 (defn put
-  "Put a message onto a queue. Returns vector of `[?msg-ids ?err]`.
+  "Put message(s) onto a queue. Returns vector of `[?msg-ids ?err]`.
 
   _NOTE_: Because `put` can add more than one message, on success `?msg-ids`
-  will always be a vector of ID strings (or `nil` on fail).
+  will always be a vector of ID strings, or `nil` on error.
+
+  _NOTE_: It is highly recommended to let Redis set the ID automatically!
 
   **Examples:**
 
   ```clojure
-  ;; the following lines are identical
-  (put :my/queue {:a 1 :b 2 :c 3})
-  (put :my/queue :* {:a 1 :b 2 :c 3})
-  (put :my/queue \"*\" {:a 1 :b 2 :c 3})
-  (put :my/queue '* {:a 1 :b 2 :c 3})
+  (require '[potamic.db :as db]
+           '[potamic.queue :as q])
+
+  (def conn (db/make-conn {:uri \"redis://localhost:6379/0\"}))
+  ;= TODO: add output
+
+  (q/create-queue :my/queue conn)
+  ;= TODO: add output
+
+  (q/put :my/queue {:a 1 :b 2 :c 3})
+  (q/put :my/queue :* {:a 1 :b 2 :c 3})
+  (q/put :my/queue \"*\" {:a 1 :b 2 :c 3})
+  (q/put :my/queue '* {:a 1 :b 2 :c 3})
   ;= [[\"1683660166747-0\"] nil]
 
-  ;;TODO: add example for multi-put
+  ;; setting ID for a single message
+  (q/put :my/queue 1683743739-0 {:a 1})
 
-  ;;TODO: add example of manually setting ID
+  ;; setting the ID for a single message using wildcard.
+  (q/put :my/queue 1683743739-* {:a 1})
+
+  ;; setting IDs for multi mode. the trailing `*` is required.
+  (q/put :my/queue 1683743739-* {:a 1} {:b 2} {:c 3})
   ```
 
   See also:
+
   - `potamic.queue/read`
-  - `potamic.queue/create-queue`
-  - `potamic.queue/create-reader`"
-  ([queue-name id-or-msg1 & msgs]
+  - `potamic.queue/read-range`
+  - `potamic.queue/read-next!`
+  - `potamic.queue/read-pending-summary`
+  - `potamic.queue/read-pending`
+  - `potamic.queue/create-queue`"
+  ([queue-name & xs]
    (let [{qname :redis-queue-name conn :queue-conn} (get-queue queue-name)
-         x id-or-msg1
+         x (first xs)
          id-set? (or (string? x) (symbol? x))
-         id (if id-set? (util/->str x) "*")
-         msgs* (into [] (if id-set? msgs (conj msgs x)))]
+         id (if id-set? x "*")
+         msgs (if id-set? (rest xs) xs)]
      (try
        [(wcar conn
               :as-pipeline
-              (mapv #(apply car/xadd qname id (reduce into [] %)) msgs*))
+              (mapv #(apply car/xadd qname id (reduce into [] %)) msgs))
         nil]
        (catch Throwable t
          [nil (Throwable->map t)])))))
@@ -197,12 +216,126 @@
                     (into {}))})
        r))
 
+(defn read
+  "Reads messages from a queue. Returns vector of `[?msgs ?err]`. This
+  function wraps Redis' `XREAD`. It does not involve groups, nor does it
+  track pending entries. Also, it limits read to a single queue (stream).
+
+  `?msgs` is of the form:
+
+  ```clojure
+  [{:id ID :msg MSG} {:id ID :msg MSG} ..]
+  ```
+
+  All options have defaults:
+
+  | Option   | Default Value                |
+  | -------- | ---------------------------- |
+  | `:start` | `0` _(all messages)_         |
+  | `:count` | `nil` _(no limit)_           |
+  | `:block` | `nil` _(return immediately)_ |
+
+  **Examples:**
+
+  ```clojure
+  (require '[potamic.db :as db]
+           '[potamic.queue :as q])
+
+  (def conn (db/make-conn {:uri \"redis://localhost:6379/0\"}))
+
+  ;; read all using defaults
+  (q/read :my/queue)
+  ;= TODO: add output
+
+  ;; start at a specific time
+  (q/read :my/queue :start 1683661383518-0 :block [2 :seconds])
+  ;= TODO: add output
+
+  ;; start at a specific time, returning at most 10
+  (q/read :my/queue :start 1683661383518-0 :count 10)
+  ;= TODO: add output
+  ```
+
+  See also:
+
+  - `potamic.queue/read-next!`
+  - `potamic.queue/put`"
+  [queue-name & {:keys [start block] cnt :count :or {start 0}}]
+  (let [{qname :redis-queue-name conn :queue-conn} (get-queue queue-name)]
+    (try
+      (let [cmd (util/prep-cmd
+                  [(when cnt [:count cnt])
+                   (when block [:block block])
+                   [:streams qname start]])
+            res (-> (wcar conn (apply car/xread cmd))
+                    first
+                    second
+                    -make-read-result)]
+        [res nil])
+      (catch Throwable t
+        [nil (Throwable->map t)]))))
+
+(defn read-range
+  "Reads a range of messages from a queue. Returns vector of `[?msgs ?err]`.
+  This function wraps Redis' `XRANGE`. It does not involve groups, nor does it
+  track pending entries.
+
+  `?msgs` is of the form:
+
+  ```clojure
+  [{:id ID :msg MSG} {:id ID :msg MSG} ..]
+  ```
+
+  All options have defaults:
+
+  | Option   | Default Value      |
+  | -------- | ------------------ |
+  | `:start` | `-` _(oldest)_     |
+  | `:end`   | `+` _(newest)_     |
+  | `:count` | `nil` _(no limit)_ |
+
+  **Examples:**
+
+  ```clojure
+  (require '[potamic.db :as db]
+           '[potamic.queue :as q])
+
+  (def conn (db/make-conn {:uri \"redis://localhost:6379/0\"}))
+
+  ;; read all using defaults (same as `(q/read :my/queue)`).
+  (q/read-range :my/queue)
+  ;= TODO: add output
+
+  ;; start at a specific time
+  (q/read-range :my/queue :start 1683661383518-0)
+  ;= TODO: add output
+
+  ;; start at a specific time, returning at most 10
+  (q/read-range :my/queue :start 1683661383518-0 :end :+ :count 10)
+  ;= TODO: add output
+  ```
+
+  See also:
+
+  - `potamic.queue/read-next!`
+  - `potamic.queue/put`"
+  [queue-name & {:keys [start end] cnt :count :or {start "-" end "+"}}]
+  (let [{qname :redis-queue-name conn :queue-conn} (get-queue queue-name)]
+    (try
+      (let [cmd (util/prep-cmd [[qname start end]
+                                     (when cnt [:count cnt])])
+            res (-> (wcar conn (apply car/xrange cmd))
+                    -make-read-result)]
+        [res nil])
+      (catch Throwable t
+        [nil (Throwable->map t)]))))
+
 ;;TODO: validate input
 ;;TODO: validate `:from` as a valid `queue-name`
 ;;TODO: confirm `:as` to be arbitrary
-(defn read-next
-  "Reads next message(s) from a queue as consumer for queue group.
-  Returns vector of `[?msgs ?err]`.
+(defn read-next!
+  "Reads next message(s) from a queue as consumer for queue group,
+  side-effecting Redis' Pending Entries List. Returns vector of `[?msgs ?err]`.
 
   `?msgs` is of the form:
 
@@ -211,7 +344,7 @@
   ```
 
   _NOTE_: `Readers` are responsible for declaring messages \"processed\".
-  That is, to call `(potamic.queue/set-message-state :processed)`.
+  That is, to call `(potamic.queue/set-processed! :processed)`.
 
   **Examples:**
 
@@ -225,28 +358,29 @@
   (q/put :my/queue {:a 1} {:b 2} {:c 3})
   ;= [[\"1683661383518-0\" \"1683661383518-1\" \"1683661383518-2\"] nil]
 
-  (read-next 1 :from :my/queue :as :my/consumer1)
+  (read-next! 1 :from :my/queue :as :my/consumer1)
 
-  (read-next :all :from :my/queue :as :my/consumer1 :block 2000)
-  (read-next :all :from :my/queue :as :my/consumer1 :block [2 :seconds])
+  (read-next! :all :from :my/queue :as :my/consumer1 :block 2000)
+  (read-next! :all :from :my/queue :as :my/consumer1 :block [2 :seconds])
   ;=
   ```
 
   See also:
 
   - `potamic.queue/read`
-  - `potamic.queue/create-reader`
+  - `potamic.queue/read-pending`
+  - `potamic.queue/read-pending-summary`
   - `potamic.queue/put`"
   [consume & {:keys [from as block]}]
   (let [{qname :redis-queue-name
          group :redis-group-name
          conn :queue-conn} (get-queue from)]
     (try
-      (let [args [[:group group (util/->str as)]
-                  (when block [:block block])
-                  (when (not= consume :all) [:count consume])
-                  [:streams qname ">"]]
-            cmd (reduce (fn [o x] (if x (into o x) o)) [] args)
+      (let [cmd (util/prep-cmd
+                  [[:group group as]
+                   (when block [:block block])
+                   (when (not= consume :all) [:count consume])
+                   [:streams qname ">"]])
             res (-> (wcar conn (apply car/xreadgroup cmd))
                     first
                     second
@@ -255,13 +389,33 @@
       (catch Throwable t
         [nil (Throwable->map t)]))))
 
-(defn create-reader
-  "Creates a `Reader` that reads n-number of messages at an interval.
-  Returns vector of `[?rdr ?err]` where `?rdr` is a running `Reader`
-  instance (see `potamic.queue/get-reader`).
+(defn- -make-pending-summary
+  "Returns `summary` map for `potamic.queue/read-pending-summary`.
+  See there for details."
+  [raw-response]
+  (let [[total start end consumers] raw-response]
+    {:total total
+     :start start
+     :end end
+     :consumers (into {} (for [[k v] consumers]
+                           [(util/<-str k)
+                            (util/->int v)]))}))
 
-  _NOTE_: `Readers` are responsible for declaring messages \"processed\".
-  That is, to call `(potamic.queue/set-message-state :processed)`.
+(defn read-pending-summary
+  "Lists all pending messages, for all consumers, for `queue`.
+  Returns vector of `[?summary ?err]`.
+
+  `?summary` is of the form:
+
+  ```clojure
+  {:total N
+   :start ID
+   :end ID
+   :consumers {CONSUMER-NAME N-PENDING}}
+  ```
+
+  _NOTE_: `CONSUMER-NAME` is coerced by the rules of `util/<-str`.
+  The string `\"my/consumer1\"` becomes the keyword `:my/consumer`.
 
   **Examples:**
 
@@ -275,26 +429,69 @@
   (q/create-queue :my/queue conn)
   ;= [true nil]
 
-  (def reader (q/create-reader conn :my/queue {:consume 1 :every 2000}))
-  ;= TODO: add output
+  (q/put :my/queue {:a 1} {:b 2} {:c 3})
+  ;= [[\"1683745855445-0\" \"1683745855445-1\" \"1683745855445-2\"]
+  ;=  nil]
 
-  (def reader (q/create-reader conn
-                               :my/queue
-                               {:consume 1 :every [2 :seconds]}))
-  ;= TODO: add output
+  (q/read-next! 2 :from :my/queue :as :consumer/one)
+  ;= [({:id \"1683745855445-0\" :msg {:a \"1\"}}
+  ;=   {:id \"1683745855445-1\" :msg {:b \"2\"}})
+  ;=  nil]
+
+  (q/read-next! 1 :from :my/queue :as :consumer/two)
+  ;= [({:id \"1683745855445-2\" :msg {:c \"3\"}})
+  ;=  nil]
+
+  (q/read-pending-summary :my/queue)
+  ;= [{:total 3
+  ;=   :start \"1683745855445-0\"
+  ;=   :end \"1683745855445-2\"
+  ;=   :consumers #:consumer{:one 2 :two 1}}
+  ;=  nil]
   ```
 
   See also:
 
-  - `potamic.queue/read`
-  - `potamic.queue/get-reader`
-  - `potamic.queue/put`
-  - `potamic.queue/create-queue`"
-  [{:keys [queue-name consume every]}]
+  - `potamic.queue/read-pending`
+  - `potamic.queue/set-processed!`"
+  [queue-name]
+  (let [{qname :redis-queue-name
+         group :redis-group-name
+         conn :queue-conn} (get-queue queue-name)]
+    (try
+      (let [cmd (util/prep-cmd [[qname group]])
+            res (-> (wcar conn (apply car/xpending cmd))
+                    -make-pending-summary)]
+        [res nil])
+      (catch Throwable t
+        [nil (Throwable->map t)]))))
+
+(defn read-pending
+  "Lists details of pending messages for a `queue`.
+  Returns vector of `[?details ?err]`.
+
+  `?details` is of the form:
+
+  ```clojure
+  ```
+
+  See also:
+
+  - `potamic.queue/read-pending-summary`
+  - `potamic.queue/set-processed!`"
+  [queue-name & {:keys [start end] cnt :count :or {start "-" end "+"}}]
   )
 
-(defn get-reader
-  "Returns running `Reader` instance.
+;;TODO: add validation
+(defn set-processed!
+  "Removes message(s) from Redis' Pending Entries List. This command wraps
+  Redis' `XACK` command. Returns vector of `[?n-acked ?err]`.
+
+  _NOTE_: (as per official Redis docs)
+
+  > \"Certain message IDs may no longer be part of the PEL
+  > (for example because they have already been acknowledged),
+  > and XACK will not count them as successfully acknowledged.\"
 
   **Examples:**
 
@@ -308,27 +505,35 @@
   (q/create-queue :my/queue conn)
   ;= [true nil]
 
-  (def rdr (q/create-reader {:queue :my/queue
-                             :consume 1
-                             :every 2000
-                             :as :my/consumer1}))
+  (q/put :my/queue {:a 1} {:b 2} {:c 3})
+  ;= [[\"1683745855445-0\" \"1683745855445-1\" \"1683745855445-2\"]
+  ;=  nil]
 
-  (def rdr (q/create-reader {:queue :my/queue
-                             :consume 1
-                             :every [2 :seconds]
-                             :as :my/consumer1}))
+  (q/read-next! 1 :from :my/queue :as :consumer/one)
+  ;= [({:id \"1683745855445-0\" :msg {:a \"1\"}})
+  ;=  nil]
 
-  (get-reader rdr)
-  ;= TODO: add output
+  (q/set-processed! :my/queue \"1683745855445-0\")
+
+  (q/set-processed! :my/queue '1683745855445-1  '1683745855445-2)
+
   ```
 
   See also:
 
-  - `potamic.queue/create-reader`
-  - `potamic.queue/create-queue`
-  - `potamic.queue/put`"
-  []
-  )
+  - `potamic.queue/read-next!`
+  - `potamic.queue/read-pending-summary`
+  - `potamic.queue/read-pending`"
+  [queue-name & msg-ids]
+  (let [{qname :redis-queue-name
+         group :redis-group-name
+         conn :queue-conn} (get-queue queue-name)]
+    (try
+      (let [cmd (util/prep-cmd [(into [qname group] msg-ids)])
+            res (wcar conn (apply car/xack cmd))]
+        [res nil])
+      (catch Throwable t
+        [nil (Throwable->map t)]))))
 
 ;;TODO: Implement (reverse of create-queue)
 (defn delete-queue
