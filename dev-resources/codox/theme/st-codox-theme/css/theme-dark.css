@@ -558,16 +558,17 @@ pre.deps {
 }
 
 .doc table {
-    border-collapse: collapse;
+    border: collapse;
     margin: 0 10px;
 }
 
 .doc table td, .doc table th {
-    border: 1px solid #dddddd;
+    text-align: left;
     padding: 4px 6px;
 }
 
-.doc table th {
+.doc table td {
+    border-bottom: 1px solid #4C566A;
 }
 
 .doc dl {
