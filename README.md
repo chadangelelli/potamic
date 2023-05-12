@@ -1,7 +1,6 @@
 # Potamic
 
-Potamic is a queue implmemntation over Redis' Stream data type.
-It provides a [queue](https://chadangelelli.github.io/potamic/potamic.queue.html) implementation that makes reading and writing as multiple consumers simple.
+Potamic is a message queue implementation over Redis' Stream data type. It makes it simple to read and write as multiple consumers, automatically tracking "read", "pending" and "processed" messages.
 
 ### Index
 
