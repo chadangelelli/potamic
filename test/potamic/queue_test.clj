@@ -8,7 +8,7 @@
             [potamic.queue :as q]
             [potamic.util :as util]))
 
-(def conn (db/make-conn {:uri "redis://localhost:6379/0"}))
+(def conn (first (db/make-conn {:uri "redis://localhost:6379/0"})))
 
 (def id-pat #"\d+-\d+")
 

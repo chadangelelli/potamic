@@ -1,9 +1,13 @@
 (ns potamic.queue
   "Implements a stream-based message queue over Redis."
+  {:added "0.1"
+   :author "Chad Angelelli"}
   (:refer-clojure :exclude [read])
-  (:require [malli.core :as malli]
-            [taoensso.carmine :as car :refer [wcar]]
-            [potamic.util :as util]))
+  (:require [potamic.errors :as e]
+            [potamic.queue.validation :as qv]
+            [potamic.util :as util]
+            [potamic.validation :as v]
+            [taoensso.carmine :as car :refer [wcar]]))
 
 (def ^:private
   queues_
@@ -69,12 +73,6 @@
      :else
      (get @queues_ x))))
 
-;;TODO: add validation
-(def Valid-Create-Queue-Opts
-  (malli/schema
-    any?
-    ))
-
 (defn- -set-default-group-name
   [queue-name]
   (keyword (str (subs (str queue-name) 1) "-group")))
@@ -96,6 +94,7 @@
 ;;TODO: add validation, errors
 ;;TODO: enforce that queue-name is a keyword (allow namespaces)
 ;;TODO: enforce that group-name is a keyword (allow namespaces)
+
 (defn create-queue
   "Creates a queue. If no options are provided, `:group` defaults to
   `QUEUE-NAME-group`. Returns vector of `[ok? ?err]`.
@@ -120,22 +119,31 @@
   "
   ([queue-name conn] (create-queue queue-name conn {}))
   ([queue-name conn {:keys [group init-id] :or {init-id 0}}]
-   (let [group-name (or group (-set-default-group-name queue-name))
-         [stream-initialized? ?err] (-initialize-stream conn
-                                                        queue-name
-                                                        group-name
-                                                        init-id)]
-     (if stream-initialized?
-       (do (swap! queues_
-                  assoc
-                  queue-name
-                  {:queue-name queue-name
-                   :queue-conn conn
-                   :group-name group-name
-                   :redis-queue-name (util/->str queue-name)
-                   :redis-group-name (util/->str group-name)})
-           [true nil])
-       [nil ?err]))))
+   (let [args {:conn conn
+               :queue-name queue-name
+               :group group
+               :init-id init-id}]
+     (if-let [args-err (v/invalidate qv/Valid-Create-Queue-Opts args)]
+       (let [err (e/error {:potamic/err-type :potamic/args-err
+                           :potamic/err-data {:args args
+                                              :err args-err}})]
+         [nil err])
+       (let [group-name (or group (-set-default-group-name queue-name))
+             [stream-initialized? ?err] (-initialize-stream conn
+                                                            queue-name
+                                                            group-name
+                                                            init-id)]
+         (if stream-initialized?
+           (do (swap! queues_
+                      assoc
+                      queue-name
+                      {:queue-name queue-name
+                       :queue-conn conn
+                       :group-name group-name
+                       :redis-queue-name (util/->str queue-name)
+                       :redis-group-name (util/->str group-name)})
+               [true nil])
+           [nil ?err]))))))
 
 ;;TODO: add input validation for ID/MSG pairs and/or wildcar IDs for multi
 (defn put

@@ -1,11 +1,25 @@
 (ns potamic.db
-  "Redis DB functionality.")
+  "Redis DB functionality."
+  (:require [potamic.errors :as e]
+            [potamic.validation :as v]
+            [potamic.db.validation :as dbv]))
 
-;;TODO: add validation
-;;TODO: on validation: check if connection is reachable (fail early!)
-;;TODO: on validation: set failed conn check to fatal
 (defn make-conn
-  "Returns a Redis connection."
-  [{:keys [uri pool]}]
-  {:uri uri
-   :pool (or pool {})})
+  "Returns vector of `[?conn ?err]`.
+
+  **Examples:**
+
+  ```clojure
+  ```
+
+  See also:
+  "
+  [{:keys [uri pool] :as args}]
+  (if-let [args-err (v/invalidate dbv/Valid-Make-Conn-Args args)]
+    [nil
+     (e/error {:potamic/err-type :potamic/args-err
+               :potamic/err-msg (str "Invalid args provided to "
+                                     "potamic.db/make-conn")
+               :potamic/err-data {:args args :err args-err}})]
+    [{:uri uri :pool (or pool {})}
+     nil]))
