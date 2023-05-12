@@ -21,12 +21,6 @@
 
 (use-fixtures :each prime-db)
 
-;;;; __________________________________________________ QUEUE SETUP
-;;TODO: add test
-(deftest Valid-Create-Queue-Opts-test
-  (testing "potamic.queue/Valid-Create-Queue-Opts"
-    (is (= 1 1))))
-
 ;;TODO: add error tests
 (deftest create-queue-test
   (testing "potamic.queue/create-queue"
@@ -72,23 +66,6 @@
               :redis-queue-name "my/test-queue"}))
       ))) ; end get-queue-test
 
-;;;; __________________________________________________ DATA
-;;TODO: add error tests
-(deftest ->str-test
-  (testing "potamic.queue/->str"
-    (let [should-pass {:my/queue "my/queue"
-                       'my/queue "my/queue"
-                       "my/queue" "my/queue"
-                       :x "x"
-                       'x "x"
-                       "x" "x"
-                       :a.b/c.d "a.b/c.d"
-                       'a.b/c.d "a.b/c.d"
-                       "a.b/c.d" "a.b/c.d"}]
-      (doseq [[x check] should-pass]
-        (is (= (util/->str x) check)))
-      ))) ; end ->str-test
-
 ;;TODO: add error tests
 (deftest put-test
   (testing "potamic.queue/put"
@@ -103,8 +80,6 @@
         (is (= (count ?ids) 3))
         (is (every? identity (mapv #(re-find id-pat %) ?ids)))))
     )) ; end put-test
-
-;;;; __________________________________________________ READER
 
 (deftest read-next!-test
   (testing "potamic.queue/read-next!"
@@ -128,7 +103,6 @@
         (is (= (:msg (second ?msgs)) {:c "3"}))))
     )) ; end read-next!-test
 
-;;;; __________________________________________________ QUEUE TEARDOWN
 ;;TODO: add test
 (deftest delete-queue-test
   (testing "potamic.queue/delete-queue"
