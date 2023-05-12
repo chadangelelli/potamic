@@ -37,7 +37,7 @@
 (defn echo
   [typ & xs]
   (let [prefix (make-prefix typ)]
-    (println (str prefix " " typ (string/join " " xs)))))
+    (println (str prefix " " (string/join " " xs)))))
 
 (defn pretty-clj
   [x]
