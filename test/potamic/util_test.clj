@@ -23,20 +23,20 @@
     (is (= 66 (util/->int "66")))
     )) ; end ->int-test
 
-(deftest <-str
+(deftest <-str-test
   (testing "potamic.util/<-str"
     (is (= :x/y (util/<-str "x/y")))
     (is (= "111" (util/<-str "111")))
     (is (= 111 (util/<-str 111)))
-    )) ; end <-str
+    )) ; end <-str-test
 
-(deftest prep-cmd
+(deftest prep-cmd-test
   (testing "potamic.util/prep-cmd"
     (is (= ["a" "b" "c"] (util/prep-cmd [[:a] ['b] ["c"]])))
     (is (= ["a" "b" "c"] (util/prep-cmd [["a"] ['b] ["c"]])))
     (is (= ["a" "b" "c" "d" "e" "f"]
            (util/prep-cmd [[[['a]] 'b [[:c]] 'd] "e" "f"])))
-    )) ; end prep-cmd
+    )) ; end prep-cmd-test
 
 (deftest time->milliseconds-test
   (testing "potamic.util/time->milliseconds"
@@ -49,3 +49,9 @@
     (is (= (util/time->milliseconds [2 :hour]) 7200000))
     (is (= (util/time->milliseconds [2 :hours]) 7200000))
     )) ; end time->milliseconds-test
+
+(deftest remove-conn-test
+  (testing "potamic.util/remove-conn"
+    (is (= (util/remove-conn {:conn {}}) {}))
+    (is (= (util/remove-conn {:conn {} :a 1 :b 2 :c 3}) {:a 1 :b 2 :c 3}))
+    )) ; end remove-conn-test
