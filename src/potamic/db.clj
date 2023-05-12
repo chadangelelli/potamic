@@ -6,16 +6,19 @@
             [taoensso.carmine :as car]))
 
 (defn make-conn
-  "Returns vector of `[?conn ?err]`. On success, `?conn` will be a Redis
-  connection usable by `taoensso.carmine/wcara`
+  "Creates a connection for Redis. Returns vector of `[?conn ?err]`.
+  On success, `?conn` will be usable by `taoensso.carmine/wcar`
 
   **Examples:**
 
   ```clojure
-  ```
+  (require '[potamic.db :as db])
 
-  See also:
-  "
+  (db/make-conn {:uri \"redis://localhost:6379/0\"})
+  ;= [{:spec {:uri \"redis://localhost:6379/0\"}
+  ;=   :pool #taoensso.carmine.connections.ConnectionPool{..}
+  ;=  nil]
+  ```"
   [{:keys [uri pool] :as args}]
   (if-let [args-err (v/invalidate dbv/Valid-Make-Conn-Args args)]
     [nil
