@@ -42,16 +42,18 @@
           all-queues (q/get-queues)]
       (is (= ok? true))
       (is (nil? ?err))
-      (is (= all-queues
+      (is (= (-> all-queues
+                 (assoc-in [:my/test-queue :queue-conn :pool] {})
+                 (assoc-in [:secondary/queue :queue-conn :pool] {}))
              {:my/test-queue
               {:group-name :my/test-queue-group,
-               :queue-conn {:pool {}, :uri "redis://localhost:6379/0"},
+               :queue-conn {:pool {} :spec {:uri "redis://localhost:6379/0"}}
                :queue-name :my/test-queue,
                :redis-group-name "my/test-queue-group",
                :redis-queue-name "my/test-queue"},
               :secondary/queue
               {:group-name :secondary/queue-group,
-               :queue-conn {:pool {}, :uri "redis://localhost:6379/0"},
+               :queue-conn {:pool {} :spec {:uri "redis://localhost:6379/0"}}
                :queue-name :secondary/queue,
                :redis-group-name "secondary/queue-group",
                :redis-queue-name "secondary/queue"}}))
@@ -62,9 +64,9 @@
   (testing "potamic.queue/get-queue"
     (is (= 1 1))
     (let [my-queue (q/get-queue :my/test-queue)]
-      (is (= my-queue
+      (is (= (assoc-in my-queue [:queue-conn :pool] {})
              {:group-name :my/test-queue-group
-              :queue-conn {:pool {} :uri "redis://localhost:6379/0"}
+              :queue-conn {:pool {} :spec {:uri "redis://localhost:6379/0"}}
               :queue-name :my/test-queue
               :redis-group-name "my/test-queue-group"
               :redis-queue-name "my/test-queue"}))

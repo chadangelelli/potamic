@@ -36,7 +36,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn {:uri \"redis://localhost:6379/0\"}))
+  (def conn (first (db/make-conn {:uri \"redis://localhost:6379/0\"})))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :queue/one)
@@ -105,7 +105,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn {:uri \"redis://localhost:6379/0\"}))
+  (def conn (first (db/make-conn {:uri \"redis://localhost:6379/0\"})))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue conn)
@@ -160,7 +160,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn {:uri \"redis://localhost:6379/0\"}))
+  (def conn (first (db/make-conn {:uri \"redis://localhost:6379/0\"})))
   ;= TODO: add output
 
   (q/create-queue :my/queue conn)
@@ -248,7 +248,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn {:uri \"redis://localhost:6379/0\"}))
+  (def conn (first (db/make-conn {:uri \"redis://localhost:6379/0\"})))
 
   ;; read all using defaults
   (q/read :my/queue)
@@ -307,7 +307,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn {:uri \"redis://localhost:6379/0\"}))
+  (def conn (first (db/make-conn {:uri \"redis://localhost:6379/0\"})))
 
   ;; read all using defaults (same as `(q/read :my/queue)`).
   (q/read-range :my/queue)
@@ -359,7 +359,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn {:uri \"redis://localhost:6379/0\"}))
+  (def conn (first (db/make-conn {:uri \"redis://localhost:6379/0\"})))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/put :my/queue {:a 1} {:b 2} {:c 3})
@@ -430,7 +430,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn {:uri \"redis://localhost:6379/0\"}))
+  (def conn (first (db/make-conn {:uri \"redis://localhost:6379/0\"})))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue conn)
@@ -506,7 +506,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn {:uri \"redis://localhost:6379/0\"}))
+  (def conn (first (db/make-conn {:uri \"redis://localhost:6379/0\"})))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue conn)

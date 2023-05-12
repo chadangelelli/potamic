@@ -2,10 +2,12 @@
   "Redis DB functionality."
   (:require [potamic.errors :as e]
             [potamic.validation :as v]
-            [potamic.db.validation :as dbv]))
+            [potamic.db.validation :as dbv]
+            [taoensso.carmine :as car]))
 
 (defn make-conn
-  "Returns vector of `[?conn ?err]`.
+  "Returns vector of `[?conn ?err]`. On success, `?conn` will be a Redis
+  connection usable by `taoensso.carmine/wcara`
 
   **Examples:**
 
@@ -21,5 +23,6 @@
                :potamic/err-msg (str "Invalid args provided to "
                                      "potamic.db/make-conn")
                :potamic/err-data {:args args :err args-err}})]
-    [{:uri uri :pool (or pool {})}
+    [{:spec {:uri uri}
+      :pool (or pool (car/connection-pool {}))}
      nil]))

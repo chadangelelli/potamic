@@ -5,8 +5,11 @@
 (def Valid-Conn
   (malli/schema
     [:map {:closed true}
-     [:uri (v/f #(re-find v/re-redis-uri %) "Invalid Redis URI")]
+     [:spec [:map {:closed true}
+             [:uri (v/f #(re-find v/re-redis-uri %) "Invalid Redis URI")]]]
      [:pool {:optional true} map?]]))
 
 (def Valid-Make-Conn-Args
-  Valid-Conn)
+  [:map {:closed true}
+   [:uri (v/f #(re-find v/re-redis-uri %) "Invalid Redis URI")]
+   [:pool {:optional true} map?]])

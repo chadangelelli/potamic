@@ -22,5 +22,5 @@
       (doseq [uri valid-uris
               :let [[?conn ?err] (db/make-conn {:uri uri})]]
         (is (nil? ?err))
-        (is (= {:uri uri :pool {}} ?conn))))
+        (is (= {:spec {:uri uri} :pool {}} (assoc ?conn :pool {})))))
     )) ; end make-conn-test
