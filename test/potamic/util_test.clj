@@ -37,3 +37,15 @@
     (is (= ["a" "b" "c" "d" "e" "f"]
            (util/prep-cmd [[[['a]] 'b [[:c]] 'd] "e" "f"])))
     )) ; end prep-cmd
+
+(deftest time->milliseconds-test
+  (testing "potamic.util/time->milliseconds"
+    (is (= (util/time->milliseconds [2 :milli]) 2))
+    (is (= (util/time->milliseconds [2 :millis]) 2))
+    (is (= (util/time->milliseconds [2 :second]) 2000))
+    (is (= (util/time->milliseconds [2 :seconds]) 2000))
+    (is (= (util/time->milliseconds [2 :minute]) 120000))
+    (is (= (util/time->milliseconds [2 :minutes]) 120000))
+    (is (= (util/time->milliseconds [2 :hour]) 7200000))
+    (is (= (util/time->milliseconds [2 :hours]) 7200000))
+    )) ; end time->milliseconds-test
