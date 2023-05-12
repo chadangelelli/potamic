@@ -6,10 +6,10 @@
   (malli/schema
     [:map {:closed true}
      [:spec [:map {:closed true}
-             [:uri (v/f #(re-find v/re-redis-uri %) "Invalid Redis URI")]]]
+             [:uri (v/f v/valid-redis-uri? "Invalid Redis URI")]]]
      [:pool {:optional true} map?]]))
 
 (def Valid-Make-Conn-Args
   [:map {:closed true}
-   [:uri (v/f #(re-find v/re-redis-uri %) "Invalid Redis URI")]
+   [:uri (v/f v/valid-redis-uri? "Invalid Redis URI")]
    [:pool {:optional true} map?]])
