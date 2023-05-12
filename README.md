@@ -1,7 +1,7 @@
 # Potamic
 
-Potamic is a Clojure API over Redis' Stream data type.
-It provides a [queue](https://chadangelelli.github.io/potamic/potamic.queue.html) implementation that makes reading and writing as multiple consumers to a queue simple.
+Potamic is a queue implmemntation over Redis' Stream data type.
+It provides a [queue](https://chadangelelli.github.io/potamic/potamic.queue.html) implementation that makes reading and writing as multiple consumers simple.
 
 ### Index
 
@@ -47,7 +47,43 @@ open docs/index.html
 <a name="running-locally"></a>
 # Running Locally
 
-> _TODO_: add docs
+### Testing
+
+You'll need 2 terminals open; 1 for Redis and 1 for the test runner.
+
+**Redis:**
+
+```shell
+cd /path/to/potamic
+
+bin/db
+```
+
+**Test Runner:**
+
+```shell
+cd /path/to/potamic
+
+bin/test
+# or
+bin/test --watch
+```
+
+### REPL
+
+```shell
+cd /path/to/potamic
+
+bin/repl
+```
+
+### Generating Docs
+
+```shell
+cd /path/to/potamic
+
+bin/doc
+```
 
 <a name="license"></a>
 # License
