@@ -16,7 +16,3 @@
            :potamic/err-file file
            :potamic/err-line line
            :potamic/err-column column)))
-
-(defmacro throw-potamic-error
-  [error]
-  `(throw (Exception. (str ~error))))
