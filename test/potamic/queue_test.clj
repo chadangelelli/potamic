@@ -8,7 +8,7 @@
             [potamic.queue :as q]
             [potamic.util :as util]))
 
-(def conn (first (db/make-conn {:uri "redis://localhost:6379/0"})))
+(def conn (first (db/make-conn :uri "redis://localhost:6379/0")))
 
 (def id-pat #"\d+-\d+")
 
@@ -30,7 +30,8 @@
 
 (deftest get-queues-test
   (testing "potamic.queue/get-queues"
-    (let [[ok? ?err] (q/create-queue :secondary/queue conn)
+    ;; first queue created in fixture
+    (let [[ok? ?err] (q/create-queue :secondary/queue conn :group :second/group)
           all-queues (q/get-queues)]
       (is (= ok? true))
       (is (nil? ?err))
@@ -44,10 +45,10 @@
                :redis-group-name "my/test-queue-group",
                :redis-queue-name "my/test-queue"},
               :secondary/queue
-              {:group-name :secondary/queue-group,
+              {:group-name :second/group
                :queue-conn {:pool {}, :spec {:uri "redis://localhost:6379/0"}},
                :queue-name :secondary/queue,
-               :redis-group-name "secondary/queue-group",
+               :redis-group-name "second/group",
                :redis-queue-name "secondary/queue"}}))
       ))) ; end get-queues-test
 
@@ -150,6 +151,20 @@
 
 (deftest delete-queue-test
   (testing "potamic.queue/delete-queue"
-    (is (= 1 1))
-    )) ; end delete-queue-test
+    (let [[_ ?put-err] (q/put :my/test-queue {:a 1} {:b 2} {:c 3})
+          [_ ?read-err] (q/read-next! 2 :from :my/test-queue :as :c/one)
+          [no? ?e] (q/destroy-queue! :my/test-queue conn)
+          [ok? ?destroy-err] (q/destroy-queue! :my/test-queue
+                                               conn
+                                               :unsafe true)]
+      (is (nil? ?put-err))
+      (is (nil? ?read-err))
+      (is (nil? ?destroy-err))
+      (is (nil? no?))
+      (is (= true ok?))
+      (is (map? ?e))
+      (is (= (:potamic/err-type ?e) :potamic/db-err))
+      (is (= (:potamic/err-msg ?e)
+             "Cannot destroy my/test-queue, it has pending messages"))
+      ))) ; end delete-queue-test
 

@@ -19,8 +19,9 @@
   ;=   :pool #taoensso.carmine.connections.ConnectionPool{..}
   ;=  nil]
   ```"
-  [{:keys [uri pool] :as args}]
-  (if-let [args-err (v/invalidate dbv/Valid-Make-Conn-Args args)]
+  [& opts]
+  (let [{:keys [uri pool] :as args} (apply hash-map opts)]
+    (if-let [args-err (v/invalidate dbv/Valid-Make-Conn-Args args)]
     [nil
      (e/error {:potamic/err-type :potamic/args-err
                :potamic/err-msg (str "Invalid args provided to "
@@ -28,4 +29,4 @@
                :potamic/err-data {:args args :err args-err}})]
     [{:spec {:uri uri}
       :pool (or pool (car/connection-pool {}))}
-     nil]))
+     nil])))

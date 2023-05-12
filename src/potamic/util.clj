@@ -117,3 +117,9 @@
         (:minute :minutes) (* n 1000 60)
         (:hour :hours) (* n 1000 60 60)))
     t))
+
+(defn remove-conn
+  [x]
+  (if (:conn x)
+    (dissoc x :conn)
+    x))
