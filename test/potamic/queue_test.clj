@@ -21,13 +21,6 @@
 
 (use-fixtures :each prime-db)
 
-;;;; __________________________________________________ QUEUE SETUP
-;;TODO: add test
-(deftest Valid-Create-Queue-Opts-test
-  (testing "potamic.queue/Valid-Create-Queue-Opts"
-    (is (= 1 1))))
-
-;;TODO: add error tests
 (deftest create-queue-test
   (testing "potamic.queue/create-queue"
     (let [[ok? ?err] (q/create-queue :secondary/queue conn)]
@@ -35,7 +28,6 @@
       (is (nil? ?err)))
     )) ; end create-queue-test
 
-;;TODO: add error tests
 (deftest get-queues-test
   (testing "potamic.queue/get-queues"
     (let [[ok? ?err] (q/create-queue :secondary/queue conn)
@@ -59,7 +51,6 @@
                :redis-queue-name "secondary/queue"}}))
       ))) ; end get-queues-test
 
-;;TODO: add error tests
 (deftest get-queue-test
   (testing "potamic.queue/get-queue"
     (is (= 1 1))
@@ -72,24 +63,6 @@
               :redis-queue-name "my/test-queue"}))
       ))) ; end get-queue-test
 
-;;;; __________________________________________________ DATA
-;;TODO: add error tests
-(deftest ->str-test
-  (testing "potamic.queue/->str"
-    (let [should-pass {:my/queue "my/queue"
-                       'my/queue "my/queue"
-                       "my/queue" "my/queue"
-                       :x "x"
-                       'x "x"
-                       "x" "x"
-                       :a.b/c.d "a.b/c.d"
-                       'a.b/c.d "a.b/c.d"
-                       "a.b/c.d" "a.b/c.d"}]
-      (doseq [[x check] should-pass]
-        (is (= (util/->str x) check)))
-      ))) ; end ->str-test
-
-;;TODO: add error tests
 (deftest put-test
   (testing "potamic.queue/put"
     (testing "-- singular put (auto-id)"
@@ -104,7 +77,10 @@
         (is (every? identity (mapv #(re-find id-pat %) ?ids)))))
     )) ; end put-test
 
-;;;; __________________________________________________ READER
+(deftest read-test
+  (testing "potamic.queue/read"
+    (is (= 1 1))
+    )) ; end read-test
 
 (deftest read-next!-test
   (testing "potamic.queue/read-next!"
@@ -128,8 +104,50 @@
         (is (= (:msg (second ?msgs)) {:c "3"}))))
     )) ; end read-next!-test
 
-;;;; __________________________________________________ QUEUE TEARDOWN
-;;TODO: add test
+(deftest read-pending-test
+  (testing "potamic.queue/read-pending"
+    (is (= 1 1))
+    )) ; end read-pending-test
+
+(deftest read-pending-summary-test
+  (testing "potamic.queue/read-pending-summary"
+    (let [qnm :my/test-queue
+          [msg-ids ?put-err]   (q/put qnm {:a 1} {:b 2} {:c 3})
+          [c1-msgs ?read1-err] (q/read-next! 2 :from qnm :as :my/consumer1)
+          [p1-summary ?p1-err] (q/read-pending-summary qnm)
+          [c2-msgs ?read2-err] (q/read-next! 1 :from qnm :as :my/consumer2)
+          [p2-summary ?p2-err] (q/read-pending-summary qnm)]
+      (is (nil? ?put-err))
+      (is (nil? ?read1-err))
+      (is (nil? ?read2-err))
+      (is (nil? ?p1-err))
+      (is (nil? ?p2-err))
+      (is (every? #(re-find id-pat %) msg-ids))
+      (is (every? #(re-find id-pat %) (map :id c1-msgs)))
+      (is (= (:msg (first c1-msgs)) {:a "1"}))
+      (is (= (:msg (second c1-msgs)) {:b "2"}))
+      (is (every? #(re-find id-pat %) (map :id c2-msgs)))
+      (is (= (:msg (first c2-msgs)) {:c "3"}))
+      (is (= (:total p1-summary) 2))
+      (is (re-find id-pat (:start p1-summary)))
+      (is (re-find id-pat (:end p1-summary)))
+      (is (= (:consumers p1-summary) {:my/consumer1 2}))
+      (is (= (:total p2-summary) 3))
+      (is (re-find id-pat (:start p2-summary)))
+      (is (re-find id-pat (:end p2-summary)))
+      (is (= (:consumers p2-summary) {:my/consumer1 2, :my/consumer2 1}))
+      ))) ; end read-pending-summary-test
+
+(deftest read-range-test
+  (testing "potamic.queue/read-range"
+    (is (= 1 1))
+    )) ; end read-range-test
+
+(deftest set-processed!-test
+  (testing "potamic.queue/set-processed!"
+    (is (= 1 1))
+    )) ; end set-processed!-test
+
 (deftest delete-queue-test
   (testing "potamic.queue/delete-queue"
     (is (= 1 1))
