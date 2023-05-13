@@ -3,8 +3,7 @@
   {:added "0.1"
    :author "Chad Angelelli"}
   (:refer-clojure :exclude [read])
-  (:require [malli.core :as malli]
-            [taoensso.carmine :as car :refer [wcar]]
+  (:require [taoensso.carmine :as car :refer [wcar]]
             [potamic.errors :as e]
             [potamic.util :as util]
             [potamic.validation :as v]
@@ -16,7 +15,34 @@
   (atom nil))
 
 (defn get-queue
-  "Returns queue spec for `queue-name`."
+  "Returns queue spec for `queue-name`.
+
+  **Examples:**
+
+  ```clojure
+  (require '[potamic.db :as db]
+           '[potamic.queue :as q])
+
+  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
+  ;= {:uri \"redis://localhost:6379/0\", :pool {}}
+
+  (q/create-queue :my/queue)
+  ;= [true nil]
+
+  (q/get-queue :my/queue)
+  ;= {:queue-name :my/queue
+  ;=  :queue-conn
+  ;=  {:spec {:uri \"redis://localhost:6379/0\"}
+  ;=          :pool #taoensso.carmine.connections.ConnectionPool{..}}
+  ;=  :group-name :my/queue-group
+  ;=  :redis-queue-name \"my/queue\"
+  ;=  :redis-group-name \"my/queue-group\"}
+  ```
+
+  See also:
+
+  - `potamic.queue/get-queues`
+  - `potamic.queue/create-queue`"
   [queue-name]
   (get @queues_ queue-name))
 
@@ -28,7 +54,6 @@
   | --------- | ---------------------------------------------- |
   | `nil`     | all queues                                     |
   | `regex`   | map filtered by searching kv space for pattern |
-  | `vector`  | calls `get-in` for `x`                         |
   | `keyword` | same as calling `(get-queue x)`                |
 
   **Examples:**
@@ -37,21 +62,49 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
+  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
-  (q/create-queue :queue/one)
+  (q/create-queue :my/one conn)
   ;= [true nil]
 
-  (q/create-queue :queue/two)
+  (q/create-queue :my/two conn)
   ;= [true nil]
 
-  (q/create-queue :another/three)
+  (q/create-queue :my/three conn)
   ;= [true nil]
 
-  ;;TODO: add search examples
+  (q/get-queues)
+  ;= #:my{:one {:queue-name :my/one
+  ;=            :queue-conn
+  ;=            {:spec {:uri \"redis://localhost:6379/0\"}
+  ;=             :pool #taoensso.carmine.connections.ConnectionPool{..}}
+  ;=            :group-name :my/one-group
+  ;=            :redis-queue-name \"my/one\"
+  ;=            :redis-group-name \"my/one-group\"}
+  ;=      :two {:queue-name :my/two
+  ;=            :queue-conn
+  ;=            {:spec {:uri \"redis://localhost:6379/0\"}
+  ;=             :pool #taoensso.carmine.connections.ConnectionPool{..}}
+  ;=            :group-name :my/two-group
+  ;=            :redis-queue-name \"my/two\"
+  ;=            :redis-group-name \"my/two-group\"}
+  ;=      :three {:queue-name :my/three
+  ;=              :queue-conn
+  ;=              {:spec {:uri \"redis://localhost:6379/0\"}
+  ;=               :pool #taoensso.carmine.connections.ConnectionPool{.. }
+  ;=              :group-name :my/three-group
+  ;=              :redis-queue-name \"my/three\"
+  ;=              :redis-group-name \"my/three-group\"}}
 
-
+  (q/get-queues #\"three\")
+  ;= #:my{:three {:queue-name :my/three
+  ;=      :queue-conn
+  ;=      {:spec {:uri \"redis://localhost:6379/0\"}
+  ;=       :pool #taoensso.carmine.connections.ConnectionPool{}}
+  ;=      :group-name :my/three-group
+  ;=      :redis-queue-name \"my/three\"
+  ;=      :redis-group-name \"my/three-group\"}}
   ```
 
   See also:
@@ -67,9 +120,6 @@
                         (or (re-find x (name k))
                             (re-find x (str v))))
                       @queues_))
-
-     (vector? x)
-     (get-in @queues_ x)
 
      :else
      (get @queues_ x))))
@@ -174,7 +224,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
+  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= TODO: add output
 
   (q/create-queue :my/queue conn)
@@ -372,9 +422,6 @@
       (catch Throwable t
         [nil (Throwable->map t)]))))
 
-;;TODO: validate input
-;;TODO: validate `:from` as a valid `queue-name`
-;;TODO: confirm `:as` to be arbitrary
 (defn read-next!
   "Reads next message(s) from a queue as consumer for queue group,
   side-effecting Redis' Pending Entries List. Returns vector of `[?msgs ?err]`.
@@ -394,7 +441,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
+  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/put :my/queue {:a 1} {:b 2} {:c 3})
@@ -465,7 +512,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
+  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue conn)
@@ -508,21 +555,123 @@
       (catch Throwable t
         [nil (Throwable->map t)]))))
 
+(defn- -make-pending-result
+  [r]
+  (mapv (fn [[id c ms n]]
+          {:id id
+           :consumer c
+           :milliseconds-since-delivered ms
+           :delivered-n-times n}
+          )
+        r))
+
 (defn read-pending
-  "Lists details of pending messages for a `queue`.
+  "Lists details of pending messages for a `queue`/`group` pair. Optionally,
+  a `consumer` may be provided for sub-filtering.
   Returns vector of `[?details ?err]`.
 
   `?details` is of the form:
 
   ```clojure
+  ({:id ID
+    :consumer NAME
+    :milliseconds-since-delivered MILLISECONDS
+    :delivered-n-times N}
+   ..)
+  ```
+
+  **Options:**
+
+  | Option   | Description   | Default                 |
+  | -------- | ------------- | ----------------------- |
+  | `:from`  | Queue name    | `none, required`        |
+  | `:for`   | Consumer name | `nil, get entire group` |
+  | `:start` | Start ID      | `\"-\"` (beginning)     |
+  | `:end`   | End ID        | `\"+\"` (end)           |
+
+  **Examples:**
+
+  ```clojure
+  (require '[potamic.db :as db]
+           '[potamic.queue :as q])
+
+  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
+  ;= {:uri \"redis://localhost:6379/0\", :pool {}}
+
+  (q/create-queue :my/queue conn)
+  ;= [true nil]
+
+  (q/put :my/queue {:a 1} {:b 2} {:c 3})
+  ;= [[\"1683944086236-0\" \"1683944086236-1\" \"1683944086236-2\"]
+  ;=  nil]
+
+  (q/read-next! 1 :from :my/queue :as :consumer/one)
+  ;= [({:id \"1683944086236-0\", :msg {:a \"1\"}})
+  ;=  nil]
+
+  (q/read-pending 10 :from :my/queue :for :consumer/one)
+  ;= [({:id \"1683944086236-0\"
+  ;=    :consumer \"consumer/one\"
+  ;=    :milliseconds-since-delivered 9547
+  ;=    :delivered-n-times 1})
+  ;=  nil]
+
+  (q/read-pending 10 :from :my/queue :for :consumer/one :start '- :end '+)
+  ;= [({:id \"1683944086236-0\"
+  ;=    :consumer \"consumer/one\"
+  ;=    :milliseconds-since-delivered 16768
+  ;=    :delivered-n-times 1})
+  ;= nil]
+
+  (q/read-pending 1
+                  :from :my/queue
+                  :for :consumer/one
+                  :start \"1683944086236-0\"
+                  :end \"1683944086236-2\")
+  ;= [({:id \"1683944086236-0\"
+  ;=    :consumer \"consumer/one\"
+  ;=    :milliseconds-since-delivered 144556
+  ;=    :delivered-n-times 1})
+  ;=  nil]
   ```
 
   See also:
 
   - `potamic.queue/read-pending-summary`
   - `potamic.queue/set-processed!`"
-  [queue-name & {:keys [start end] cnt :count :or {start "-" end "+"}}]
-  )
+  [count* & opts]
+  (let [opts* (apply hash-map opts)
+        from (:from opts*)
+        start (or (:start opts*) "-")
+        end (or (:end opts*) "+")
+        consumer (:for opts*)
+        args (assoc opts*
+                    :from from
+                    :for consumer
+                    :start start
+                    :end end
+                    :count count*)]
+    (if-let [args-err (v/invalidate qv/Valid-Read-Pending-Args args)]
+      [nil
+       (e/error {:potamic/err-type :potamic/args-err
+                 :potamic/err-msg (str "Invalid args provided to "
+                                       "potamic.queue/read-pending")
+                 :potamic/err-data {:args args :err args-err}})]
+      (let [{qname :redis-queue-name
+             group :redis-group-name
+             conn :queue-conn} (get-queue from)]
+        (try
+          (let [cmd (util/prep-cmd [[qname group start end count*]
+                                    (when consumer consumer)])
+                res (-> (wcar conn (apply car/xpending cmd))
+                        -make-pending-result)]
+            [(lazy-seq res) nil])
+          (catch Throwable t
+            [nil
+             (e/error {:potamic/err-type :potamic/args-err
+                       :potamic/err-msg (.getMessage t)
+                       :potamic/err-data {:args args
+                                          :err (Throwable->map t)}})]))))))
 
 ;;TODO: add validation
 (defn set-processed!
@@ -541,7 +690,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
+  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue conn)

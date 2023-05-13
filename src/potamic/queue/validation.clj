@@ -18,3 +18,11 @@
      [:conn dbv/Valid-Conn]
      [:unsafe {:optional true} boolean?]]))
 
+(def Valid-Read-Pending-Args
+  (malli/schema
+    [:map {:closed true}
+     [:count int?]
+     [:from [:or keyword? symbol? string?]]
+     [:for {:optional true} [:or keyword? symbol? string?]]
+     [:start {:optional true} [:or keyword? symbol? string?]]
+     [:end {:optional true} [:or keyword? symbol? string?]]]))

@@ -123,8 +123,34 @@
 
 (deftest read-pending-test
   (testing "potamic.queue/read-pending"
-    (is (= 1 1))
-    )) ; end read-pending-test
+    (let [[_ _] (q/put :my/test-queue {:a 1} {:b 2} {:c 3})
+          [_ _] (q/read-next! 1 :from :my/test-queue :as :consumer/one)
+          [read1 ?read1-err] (q/read-pending 10
+                                             :from :my/test-queue
+                                             :for :consumer/one)
+          [read2 ?read2-err ] (q/read-pending 10
+                                              :from :my/test-queue
+                                              :for :consumer/one
+                                              :start '-
+                                              :end '+)
+          [read3 ?read3-err] (q/read-pending 1
+                                             :from :my/test-queue
+                                             :for :consumer/one
+                                             :start (:id (first read1))
+                                             :end  (:id (last read2)))]
+      (is (nil? ?read1-err))
+      (is (nil? ?read2-err))
+      (is (nil? ?read3-err))
+      (is (sequential? read1))
+      (is (sequential? read2))
+      (is (sequential? read3))
+      (is (= (count read1) 1))
+      (is (= (count read2) 1))
+      (is (= (count read3) 1))
+      (is (= (:id (first read1)) (:id (first read2))))
+      (is (= (:id (first read2)) (:id (first read3))))
+      (is (= (:id (first read1)) (:id (first read3))))
+      ))) ; end read-pending-test
 
 (deftest read-pending-summary-test
   (testing "potamic.queue/read-pending-summary"

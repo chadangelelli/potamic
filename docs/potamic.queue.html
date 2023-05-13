@@ -85,6 +85,30 @@
 <li><code>potamic.queue/create-queue</code></li>
 </ul>
 </div></div></div><div class="public anchor" id="var-get-queue"><h3>get-queue</h3><div class="usage"><code>(get-queue queue-name)</code></div><div class="doc"><div class="markdown"><p>Returns queue spec for <code>queue-name</code>.</p>
+<p><strong>Examples:</strong></p>
+<pre><code class="language-clojure">(require '[potamic.db :as db]
+         '[potamic.queue :as q])
+
+(def conn (first (db/make-conn :uri "redis://localhost:6379/0")))
+;= {:uri "redis://localhost:6379/0", :pool {}}
+
+(q/create-queue :my/queue)
+;= [true nil]
+
+(q/get-queue :my/queue)
+;= {:queue-name :my/queue
+;=  :queue-conn
+;=  {:spec {:uri "redis://localhost:6379/0"}
+;=          :pool #taoensso.carmine.connections.ConnectionPool{..}}
+;=  :group-name :my/queue-group
+;=  :redis-queue-name "my/queue"
+;=  :redis-group-name "my/queue-group"}
+</code></pre>
+<p>See also:</p>
+<ul>
+<li><code>potamic.queue/get-queues</code></li>
+<li><code>potamic.queue/create-queue</code></li>
+</ul>
 </div></div></div><div class="public anchor" id="var-get-queues"><h3>get-queues</h3><div class="usage"><code>(get-queues)</code><code>(get-queues x)</code></div><div class="doc"><div class="markdown"><p>Get all, or a subset, of queues created via <code>potamic.queue/create-queue</code>. Return value varies depending on <code>x</code> input type.</p>
 <table>
 <thead>
@@ -93,7 +117,6 @@
 <tbody>
 <tr><td> <code>nil</code>     </td><td> all queues                                     </td></tr>
 <tr><td> <code>regex</code>   </td><td> map filtered by searching kv space for pattern </td></tr>
-<tr><td> <code>vector</code>  </td><td> calls <code>get-in</code> for <code>x</code>                         </td></tr>
 <tr><td> <code>keyword</code> </td><td> same as calling <code>(get-queue x)</code>                </td></tr>
 </tbody>
 </table>
@@ -101,21 +124,49 @@
 <pre><code class="language-clojure">(require '[potamic.db :as db]
          '[potamic.queue :as q])
 
-(def conn (db/make-conn :uri "redis://localhost:6379/0"))
+(def conn (first (db/make-conn :uri "redis://localhost:6379/0")))
 ;= {:uri "redis://localhost:6379/0", :pool {}}
 
-(q/create-queue :queue/one)
+(q/create-queue :my/one conn)
 ;= [true nil]
 
-(q/create-queue :queue/two)
+(q/create-queue :my/two conn)
 ;= [true nil]
 
-(q/create-queue :another/three)
+(q/create-queue :my/three conn)
 ;= [true nil]
 
-;;TODO: add search examples
+(q/get-queues)
+;= #:my{:one {:queue-name :my/one
+;=            :queue-conn
+;=            {:spec {:uri "redis://localhost:6379/0"}
+;=             :pool #taoensso.carmine.connections.ConnectionPool{..}}
+;=            :group-name :my/one-group
+;=            :redis-queue-name "my/one"
+;=            :redis-group-name "my/one-group"}
+;=      :two {:queue-name :my/two
+;=            :queue-conn
+;=            {:spec {:uri "redis://localhost:6379/0"}
+;=             :pool #taoensso.carmine.connections.ConnectionPool{..}}
+;=            :group-name :my/two-group
+;=            :redis-queue-name "my/two"
+;=            :redis-group-name "my/two-group"}
+;=      :three {:queue-name :my/three
+;=              :queue-conn
+;=              {:spec {:uri "redis://localhost:6379/0"}
+;=               :pool #taoensso.carmine.connections.ConnectionPool{.. }
+;=              :group-name :my/three-group
+;=              :redis-queue-name "my/three"
+;=              :redis-group-name "my/three-group"}}
 
-
+(q/get-queues #"three")
+;= #:my{:three {:queue-name :my/three
+;=      :queue-conn
+;=      {:spec {:uri "redis://localhost:6379/0"}
+;=       :pool #taoensso.carmine.connections.ConnectionPool{}}
+;=      :group-name :my/three-group
+;=      :redis-queue-name "my/three"
+;=      :redis-group-name "my/three-group"}}
 </code></pre>
 <p>See also:</p>
 <ul>
@@ -130,7 +181,7 @@
 <pre><code class="language-clojure">(require '[potamic.db :as db]
          '[potamic.queue :as q])
 
-(def conn (db/make-conn :uri "redis://localhost:6379/0"))
+(def conn (first (db/make-conn :uri "redis://localhost:6379/0")))
 ;= TODO: add output
 
 (q/create-queue :my/queue conn)
@@ -228,7 +279,7 @@
 <pre><code class="language-clojure">(require '[potamic.db :as db]
          '[potamic.queue :as q])
 
-(def conn (db/make-conn :uri "redis://localhost:6379/0"))
+(def conn (first (db/make-conn :uri "redis://localhost:6379/0")))
 ;= {:uri "redis://localhost:6379/0", :pool {}}
 
 (q/put :my/queue {:a 1} {:b 2} {:c 3})
@@ -247,9 +298,69 @@
 <li><code>potamic.queue/read-pending-summary</code></li>
 <li><code>potamic.queue/put</code></li>
 </ul>
-</div></div></div><div class="public anchor" id="var-read-pending"><h3>read-pending</h3><div class="usage"><code>(read-pending queue-name &amp; {:keys [start end], cnt :count, :or {start "-", end "+"}})</code></div><div class="doc"><div class="markdown"><p>Lists details of pending messages for a <code>queue</code>. Returns vector of <code>[?details ?err]</code>.</p>
+</div></div></div><div class="public anchor" id="var-read-pending"><h3>read-pending</h3><div class="usage"><code>(read-pending count* &amp; opts)</code></div><div class="doc"><div class="markdown"><p>Lists details of pending messages for a <code>queue</code>/<code>group</code> pair. Optionally, a <code>consumer</code> may be provided for sub-filtering. Returns vector of <code>[?details ?err]</code>.</p>
 <p><code>?details</code> is of the form:</p>
-<pre><code class="language-clojure"></code></pre>
+<pre><code class="language-clojure">({:id ID
+  :consumer NAME
+  :milliseconds-since-delivered MILLISECONDS
+  :delivered-n-times N}
+ ..)
+</code></pre>
+<p><strong>Options:</strong></p>
+<table>
+<thead>
+<tr><th> Option   </th><th> Description   </th><th> Default                 </th></tr>
+</thead>
+<tbody>
+<tr><td> <code>:from</code>  </td><td> Queue name    </td><td> <code>none, required</code>        </td></tr>
+<tr><td> <code>:for</code>   </td><td> Consumer name </td><td> <code>nil, get entire group</code> </td></tr>
+<tr><td> <code>:start</code> </td><td> Start ID      </td><td> <code>"-"</code> (beginning)     </td></tr>
+<tr><td> <code>:end</code>   </td><td> End ID        </td><td> <code>"+"</code> (end)           </td></tr>
+</tbody>
+</table>
+<p><strong>Examples:</strong></p>
+<pre><code class="language-clojure">(require '[potamic.db :as db]
+         '[potamic.queue :as q])
+
+(def conn (first (db/make-conn :uri "redis://localhost:6379/0")))
+;= {:uri "redis://localhost:6379/0", :pool {}}
+
+(q/create-queue :my/queue conn)
+;= [true nil]
+
+(q/put :my/queue {:a 1} {:b 2} {:c 3})
+;= [["1683944086236-0" "1683944086236-1" "1683944086236-2"]
+;=  nil]
+
+(q/read-next! 1 :from :my/queue :as :consumer/one)
+;= [({:id "1683944086236-0", :msg {:a "1"}})
+;=  nil]
+
+(q/read-pending 10 :from :my/queue :for :consumer/one)
+;= [({:id "1683944086236-0"
+;=    :consumer "consumer/one"
+;=    :milliseconds-since-delivered 9547
+;=    :delivered-n-times 1})
+;=  nil]
+
+(q/read-pending 10 :from :my/queue :for :consumer/one :start '- :end '+)
+;= [({:id "1683944086236-0"
+;=    :consumer "consumer/one"
+;=    :milliseconds-since-delivered 16768
+;=    :delivered-n-times 1})
+;= nil]
+
+(q/read-pending 1
+                :from :my/queue
+                :for :consumer/one
+                :start "1683944086236-0"
+                :end "1683944086236-2")
+;= [({:id "1683944086236-0"
+;=    :consumer "consumer/one"
+;=    :milliseconds-since-delivered 144556
+;=    :delivered-n-times 1})
+;=  nil]
+</code></pre>
 <p>See also:</p>
 <ul>
 <li><code>potamic.queue/read-pending-summary</code></li>
@@ -267,7 +378,7 @@
 <pre><code class="language-clojure">(require '[potamic.db :as db]
          '[potamic.queue :as q])
 
-(def conn (db/make-conn :uri "redis://localhost:6379/0"))
+(def conn (first (db/make-conn :uri "redis://localhost:6379/0")))
 ;= {:uri "redis://localhost:6379/0", :pool {}}
 
 (q/create-queue :my/queue conn)
@@ -345,7 +456,7 @@
 <pre><code class="language-clojure">(require '[potamic.db :as db]
          '[potamic.queue :as q])
 
-(def conn (db/make-conn :uri "redis://localhost:6379/0"))
+(def conn (first (db/make-conn :uri "redis://localhost:6379/0")))
 ;= {:uri "redis://localhost:6379/0", :pool {}}
 
 (q/create-queue :my/queue conn)
