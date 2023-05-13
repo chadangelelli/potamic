@@ -3,6 +3,7 @@
   {:added "0.1"
    :author "Chad Angelelli"}
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
+            [clojure.core.async :as async]
             [taoensso.carmine :as car :refer [wcar]]
             [potamic.db :as db]
             [potamic.queue :as q]
@@ -54,7 +55,6 @@
 
 (deftest get-queue-test
   (testing "potamic.queue/get-queue"
-    (is (= 1 1))
     (let [my-queue (q/get-queue :my/test-queue)]
       (is (= (assoc-in my-queue [:queue-conn :pool] {})
              {:group-name :my/test-queue-group
@@ -80,7 +80,23 @@
 
 (deftest read-test
   (testing "potamic.queue/read"
-    (is (= 1 1))
+    (let [[_ _] (q/put :my/test-queue {:a 1} {:b 2} {:c 3})
+          [read1-msgs ?read1-err] (q/read :my/test-queue)
+          [read2-msgs ?read2-err] (q/read :my/test-queue :start 0)
+          _ (async/go (async/<! (async/timeout 100)) (q/put :my/test-queue {:d 4}))
+          [read3-msgs ?read3-err] (q/read :my/test-queue
+                                          :count 1
+                                          :start (:id (last read1-msgs))
+                                          :block [120 :millis])]
+      (is (nil? ?read1-err))
+      (is (nil? ?read2-err))
+      (is (nil? ?read3-err))
+      (is (every? #(re-find id-pat %) (map :id read1-msgs)))
+      (is (every? #(re-find id-pat %) (map :id read2-msgs)))
+      (is (= read1-msgs read2-msgs))
+      (is (re-find id-pat (:id (first read3-msgs))))
+      (is (= 1 (count read3-msgs)))
+      (is (= (:msg (first read3-msgs)) {:d "4"})))
     )) ; end read-test
 
 (deftest read-next!-test
