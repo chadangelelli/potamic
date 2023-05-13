@@ -25,6 +25,8 @@
 (deftest create-queue-test
   (testing "potamic.queue/create-queue"
     (let [[ok? ?err] (q/create-queue :secondary/queue conn)]
+      (println "--> ok?:" ok?)
+      (println "--> ?err:" ?err)
       (is (= ok? true))
       (is (nil? ?err)))
     )) ; end create-queue-test
@@ -52,7 +54,7 @@
                :redis-group-name "second/group",
                :redis-queue-name "secondary/queue"}}))
       ))) ; end get-queues-test
-
+;;
 (deftest get-queue-test
   (testing "potamic.queue/get-queue"
     (let [my-queue (q/get-queue :my/test-queue)]
@@ -63,7 +65,7 @@
               :redis-group-name "my/test-queue-group"
               :redis-queue-name "my/test-queue"}))
       ))) ; end get-queue-test
-
+;;
 (deftest put-test
   (testing "potamic.queue/put"
     (testing "-- singular put (auto-id)"
@@ -77,7 +79,7 @@
         (is (= (count ?ids) 3))
         (is (every? identity (mapv #(re-find id-pat %) ?ids)))))
     )) ; end put-test
-
+;;
 (deftest read-test
   (testing "potamic.queue/read"
     (let [[_ _] (q/put :my/test-queue {:a 1} {:b 2} {:c 3})
@@ -98,7 +100,7 @@
       (is (= 1 (count read3-msgs)))
       (is (= (:msg (first read3-msgs)) {:d "4"})))
     )) ; end read-test
-
+;;
 (deftest read-next!-test
   (testing "potamic.queue/read-next!"
     (let [[?ids ?err] (q/put :my/test-queue {:a 1} {:b 2} {:c 3})]
@@ -120,7 +122,7 @@
         (is (= (:msg (first ?msgs)) {:b "2"}))
         (is (= (:msg (second ?msgs)) {:c "3"}))))
     )) ; end read-next!-test
-
+;;
 (deftest read-pending-test
   (testing "potamic.queue/read-pending"
     (let [[_ _] (q/put :my/test-queue {:a 1} {:b 2} {:c 3})
@@ -151,7 +153,7 @@
       (is (= (:id (first read2)) (:id (first read3))))
       (is (= (:id (first read1)) (:id (first read3))))
       ))) ; end read-pending-test
-
+;;
 (deftest read-pending-summary-test
   (testing "potamic.queue/read-pending-summary"
     (let [qnm :my/test-queue
@@ -180,17 +182,25 @@
       (is (re-find id-pat (:end p2-summary)))
       (is (= (:consumers p2-summary) {:my/consumer1 2, :my/consumer2 1}))
       ))) ; end read-pending-summary-test
-
+;;
 (deftest read-range-test
   (testing "potamic.queue/read-range"
     (is (= 1 1))
+  ; #_(let [[_ _] (q/put :my/queue {:a 1} {:b 2} {:c 3})
+  ;       [r1 ?e1] (q/read-range :my/test-queue :start '- :end '+)
+  ;       [r2 ?e2] (q/read-range :my/queue :start '- :end '+ :count 10)
+  ;       ]
+  ;   (is (nil? ?e1))
+  ;   (is (nil? ?e2))
+  ;   ;(is (every? #(re-find id-pat %) (map :id r1)))
+  ;   )
     )) ; end read-range-test
-
+;;
 (deftest set-processed!-test
   (testing "potamic.queue/set-processed!"
     (is (= 1 1))
     )) ; end set-processed!-test
-
+;;
 (deftest delete-queue-test
   (testing "potamic.queue/delete-queue"
     (let [[_ ?put-err] (q/put :my/test-queue {:a 1} {:b 2} {:c 3})
@@ -209,4 +219,4 @@
       (is (= (:potamic/err-msg ?e)
              "Cannot destroy my/test-queue, it has pending messages"))
       ))) ; end delete-queue-test
-
+;;

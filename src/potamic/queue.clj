@@ -7,12 +7,8 @@
             [potamic.errors :as e]
             [potamic.util :as util]
             [potamic.validation :as v]
-            [potamic.queue.validation :as qv]))
-
-(def ^:private
-  queues_
-  "Contains queue specs."
-  (atom nil))
+            [potamic.queue.validation :as qv]
+            [potamic.queue.queues :as queues]))
 
 (defn get-queue
   "Returns queue spec for `queue-name`.
@@ -44,7 +40,7 @@
   - `potamic.queue/get-queues`
   - `potamic.queue/create-queue`"
   [queue-name]
-  (get @queues_ queue-name))
+  (get @queues/queues_ queue-name))
 
 (defn get-queues
   "Get all, or a subset, of queues created via `potamic.queue/create-queue`.
@@ -112,17 +108,17 @@
   - `potamic.queue/get-queue`
   - `potamic.queue/create-queue`
   - `potamic.queue/delete-queue`"
-  ([] @queues_)
+  ([] @queues/queues_)
   ([x]
    (cond
      (instance? java.util.regex.Pattern x)
      (into {} (filter (fn [[k v]]
                         (or (re-find x (name k))
                             (re-find x (str v))))
-                      @queues_))
+                      @queues/queues_))
 
      :else
-     (get @queues_ x))))
+     (get @queues/queues_ x))))
 
 (defn- -set-default-group-name
   [queue-name]
@@ -148,8 +144,6 @@
 
 (defn create-queue
   "Creates a queue. Returns vector of `[ok? ?err]`.
-
-  **Options:**
 
   | Option     | Description       | Default            |
   | ---------- | ----------------- | ------------------ |
@@ -196,16 +190,15 @@
       (let [[stream-initialized? ?err] (-initialize-stream conn
                                                            queue-name
                                                            group-name
-                                                           init-id)]
-        (if stream-initialized?
-          (do (swap! queues_
-                     assoc
-                     queue-name
-                     {:queue-name queue-name
+                                                           init-id)
+            new-queue {:queue-name queue-name
                       :queue-conn conn
                       :group-name group-name
                       :redis-queue-name (util/->str queue-name)
-                      :redis-group-name (util/->str group-name)})
+                      :redis-group-name (util/->str group-name)}
+            ]
+        (if stream-initialized?
+          (do (swap! queues/queues_ assoc queue-name new-queue)
               [true nil])
           [nil ?err])))))
 
@@ -298,8 +291,6 @@
   [{:id ID :msg MSG} ..]
   ```
 
-  All options have defaults:
-
   | Option   | Default Value                |
   | -------- | ---------------------------- |
   | `:start` | `0` _(all messages)_         |
@@ -378,8 +369,6 @@
   [{:id ID :msg MSG} ..]
   ```
 
-  All options have defaults:
-
   | Option   | Default Value      |
   | -------- | ------------------ |
   | `:start` | `-` _(oldest)_     |
@@ -390,37 +379,61 @@
 
   ```clojure
   (require '[potamic.db :as db]
-           '[potamic.queue :as q])
+  '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
+  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
+  ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
-  ;; read all using defaults (same as `(q/read :my/queue)`).
-  (q/read-range :my/queue)
-  ;= TODO: add output
+  (q/create-queue :my/queue conn)
+  ;= [true nil]
 
-  ;; start at a specific time
-  (q/read-range :my/queue :start 1683661383518-0)
-  ;= TODO: add output
+  (q/put :my/queue {:a 1} {:b 2} {:c 3})
+  ;= [[\"1683946534423-0\" \"1683946534423-1\" \"1683946534423-2\"]
+  ;=  nil]
 
-  ;; start at a specific time, returning at most 10
-  (q/read-range :my/queue :start 1683661383518-0 :end :+ :count 10)
-  ;= TODO: add output
+  (q/read-range :my/queue :start '- :end '+)
+  ;= [({:id \"1683946534423-0\", :msg {:a \"1\"}}
+  ;=   {:id \"1683946534423-1\", :msg {:b \"2\"}}
+  ;=   {:id \"1683946534423-2\", :msg {:c \"3\"}})
+  ;=  nil]
+
+  (q/read-range :my/queue :start '- :end '+ :count 10)
+  ;= [({:id \"1683946534423-0\", :msg {:a \"1\"}}
+  ;=   {:id \"1683946534423-1\", :msg {:b \"2\"}}
+  ;=   {:id \"1683946534423-2\", :msg {:c \"3\"}})
+  ;=  nil]
   ```
 
   See also:
 
+  - `potamic.queue/read`
   - `potamic.queue/read-next!`
   - `potamic.queue/put`"
-  [queue-name & {:keys [start end] cnt :count :or {start "-" end "+"}}]
-  (let [{qname :redis-queue-name conn :queue-conn} (get-queue queue-name)]
-    (try
-      (let [cmd (util/prep-cmd [[qname start end]
-                                     (when cnt [:count cnt])])
-            res (-> (wcar conn (apply car/xrange cmd))
-                    -make-read-result)]
-        [res nil])
-      (catch Throwable t
-        [nil (Throwable->map t)]))))
+  [queue-name & opts]
+  (let [opts* (apply hash-map opts)
+        start (or (:start opts*) "-")
+        end (or (:end opts*) "+")
+        cnt (:count opts*)
+        args (assoc opts*
+                    :queue-name queue-name
+                    :start start
+                    :end end
+                    :count cnt)]
+    (if-let [args-err (v/invalidate qv/Valid-Read-Range-Args args)]
+      [nil
+       (e/error {:potamic/err-type :potamic/args-err
+                 :potamic/err-msg (str "Invalid args provided to "
+                                       "potamic.queue/read-range")
+                 :potamic/err-data {:args args :err args-err}})]
+      (let [{qname :redis-queue-name conn :queue-conn} (get-queue queue-name)]
+        (try
+          (let [cmd (util/prep-cmd [[qname start end]
+                                    (when cnt [:count cnt])])
+                res (-> (wcar conn (apply car/xrange cmd))
+                        -make-read-result)]
+            [res nil])
+          (catch Throwable t
+            [nil (Throwable->map t)]))))))
 
 (defn read-next!
   "Reads next message(s) from a queue as consumer for queue group,
@@ -580,8 +593,6 @@
    ..)
   ```
 
-  **Options:**
-
   | Option   | Description   | Default                 |
   | -------- | ------------- | ----------------------- |
   | `:from`  | Queue name    | `none, required`        |
@@ -731,8 +742,6 @@
   Returns vector of `[ok? ?err]`.
 
   _WARNING_: Do not call this command unless you know it's safe to do so!
-
-  **Options:**
 
   | Option     | Description                      | Default |
   | ---------- | -------------------------------- | ------- |
