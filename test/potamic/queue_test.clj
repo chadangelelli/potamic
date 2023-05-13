@@ -186,14 +186,20 @@
 (deftest read-range-test
   (testing "potamic.queue/read-range"
     (is (= 1 1))
-  ; #_(let [[_ _] (q/put :my/queue {:a 1} {:b 2} {:c 3})
-  ;       [r1 ?e1] (q/read-range :my/test-queue :start '- :end '+)
-  ;       [r2 ?e2] (q/read-range :my/queue :start '- :end '+ :count 10)
-  ;       ]
-  ;   (is (nil? ?e1))
-  ;   (is (nil? ?e2))
-  ;   ;(is (every? #(re-find id-pat %) (map :id r1)))
-  ;   )
+    (let [[_ _] (q/put :my/test-queue {:a 1} {:b 2} {:c 3})
+          [r1 ?e1] (q/read-range :my/test-queue :start '- :end '+)
+          [r2 ?e2] (q/read-range :my/test-queue :start '- :end '+ :count 10)]
+      (is (nil? ?e1))
+      (is (nil? ?e2))
+      (is (every? #(re-find id-pat %) (map :id r1)))
+      (is (every? #(re-find id-pat %) (map :id r2)))
+      (is (= (:msg (first r1)) {:a "1"}))
+      (is (= (:msg (second r1)) {:b "2"}))
+      (is (= (:msg (nth r1 2)) {:c "3"}))
+      (is (= (:msg (first r2)) {:a "1"}))
+      (is (= (:msg (second r2)) {:b "2"}))
+      (is (= (:msg (nth r2 2)) {:c "3"}))
+      (is (= (:msg (first r1)) (:msg (first r2)))))
     )) ; end read-range-test
 ;;
 (deftest set-processed!-test
