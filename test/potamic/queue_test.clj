@@ -6,8 +6,7 @@
             [clojure.core.async :as async]
             [taoensso.carmine :as car :refer [wcar]]
             [potamic.db :as db]
-            [potamic.queue :as q]
-            [potamic.util :as util]))
+            [potamic.queue :as q]))
 
 (def conn (first (db/make-conn :uri "redis://localhost:6379/0")))
 
@@ -185,7 +184,6 @@
 ;;
 (deftest read-range-test
   (testing "potamic.queue/read-range"
-    (is (= 1 1))
     (let [[_ _] (q/put :my/test-queue {:a 1} {:b 2} {:c 3})
           [r1 ?e1] (q/read-range :my/test-queue :start '- :end '+)
           [r2 ?e2] (q/read-range :my/test-queue :start '- :end '+ :count 10)]
