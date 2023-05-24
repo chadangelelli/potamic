@@ -14,7 +14,7 @@
   ```clojure
   (require '[potamic.db :as db])
 
-  (db/make-conn {:uri \"redis://localhost:6379/0\"})
+  (db/make-conn :uri \"redis://localhost:6379/0\")
   ;= [{:spec {:uri \"redis://localhost:6379/0\"}
   ;=   :pool #taoensso.carmine.connections.ConnectionPool{..}
   ;=  nil]
