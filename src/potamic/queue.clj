@@ -19,7 +19,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue)
@@ -58,7 +58,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/one conn)
@@ -156,7 +156,7 @@
   (require '[potamic.db :as db]
   '[potamic.queue :as q])
 
-  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= {:spec {:uri \"redis://localhost:6379/0\"}
   ;=  :pool #taoensso.carmine.connections.ConnectionPool{..}}
 
@@ -183,6 +183,7 @@
               :group group-name}]
     (if-let [args-err (v/invalidate qv/Valid-Create-Queue-Args args)]
       [nil (e/error {:potamic/err-type :potamic/args-err
+                     :potamic/err-fatal? false
                      :potamic/err-msg (str "Invalid args provided to "
                                            "potamic.queue/create-queue")
                      :potamic/err-data {:args (util/remove-conn args)
@@ -217,7 +218,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= TODO: add output
 
   (q/create-queue :my/queue conn)
@@ -304,7 +305,7 @@
            '[potamic.queue :as q]
            '[clojure.core.async :as async])
 
-  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= {:spec {:uri \"redis://localhost:6379/0\"}
   ;=  :pool #taoensso.carmine.connections.ConnectionPool{..}}
 
@@ -381,7 +382,7 @@
   (require '[potamic.db :as db]
   '[potamic.queue :as q])
 
-  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue conn)
@@ -422,6 +423,7 @@
     (if-let [args-err (v/invalidate qv/Valid-Read-Range-Args args)]
       [nil
        (e/error {:potamic/err-type :potamic/args-err
+                 :potamic/err-fatal? false
                  :potamic/err-msg (str "Invalid args provided to "
                                        "potamic.queue/read-range")
                  :potamic/err-data {:args args :err args-err}})]
@@ -454,7 +456,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/put :my/queue {:a 1} {:b 2} {:c 3})
@@ -525,7 +527,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue conn)
@@ -606,7 +608,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue conn)
@@ -665,6 +667,7 @@
     (if-let [args-err (v/invalidate qv/Valid-Read-Pending-Args args)]
       [nil
        (e/error {:potamic/err-type :potamic/args-err
+                 :potamic/err-fatal? false
                  :potamic/err-msg (str "Invalid args provided to "
                                        "potamic.queue/read-pending")
                  :potamic/err-data {:args args :err args-err}})]
@@ -701,7 +704,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue conn)
@@ -753,7 +756,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (first (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
   ;= {:spec {:uri \"redis://localhost:6379/0\"}
   ;=  :pool #taoensso.carmine.connections.ConnectionPool{..}}
 
@@ -800,6 +803,7 @@
               :unsafe unsafe?}]
     (if-let [args-err (v/invalidate qv/Valid-Destroy-Queue-Args args)]
       [nil (e/error {:potamic/err-type :potamic/args-err
+                     :potamic/err-fatal? false
                      :potamic/err-msg (str "Invalid args provided to "
                                            "potamic.queue/destroy-queue")
                      :potamic/err-data {:args (util/remove-conn args)
@@ -821,6 +825,7 @@
         (if (and (not unsafe?) has-pending?)
           [nil
            (e/error {:potamic/err-type :potamic/db-err
+                     :potamic/err-fatal? false
                      :potamic/err-msg (str "Cannot destroy " qname
                                            ", it has pending messages")
                      :potamic/err-data {:args (util/remove-conn args)
@@ -836,6 +841,7 @@
             (catch Throwable t
               [nil
                (e/error {:potamic/err-type :potamic/db-err
+                         :potamic/err-fatal? false
                          :potamic/err-msg (str "Cannot destroy " qname
                                                ", it has pending messages")
                          :potamic/err-data {:args (util/remove-conn args)
