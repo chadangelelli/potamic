@@ -19,7 +19,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue)
@@ -58,7 +58,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/one conn)
@@ -156,7 +156,7 @@
   (require '[potamic.db :as db]
   '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:spec {:uri \"redis://localhost:6379/0\"}
   ;=  :pool #taoensso.carmine.connections.ConnectionPool{..}}
 
@@ -210,7 +210,9 @@
   _NOTE_: Because `put` can add more than one message, on success `?msg-ids`
   will always be a vector of ID strings, or `nil` on error.
 
-  _NOTE_: It is highly recommended to let Redis set the ID automatically!
+  _NOTE_: It is highly recommended to let Redis set the ID automatically.
+  However, if setting the ID, anything that will resolve via `name` is
+  acceptable. _As a reminder: numbers cannot be quoted._
 
   **Examples:**
 
@@ -218,26 +220,33 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
-  ;= TODO: add output
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
+  ;= {:spec {:uri \"redis://localhost:6379/0\"}
+  ;=  :pool #taoensso.carmine.connections.ConnectionPool{..}}
 
   (q/create-queue :my/queue conn)
-  ;= TODO: add output
+  ;= [true nil]
 
+  ;; setting ID for a single message
+  (q/put :my/queue \"1683743739-0\" {:a 1})
+  ;= [[\"1683743739-0\"] nil]
+
+  ;; setting the ID for a single message using wildcard.
+  (q/put :my/queue \"1683743739-*\" {:a 1})
+  (q/put :my/queue :1683743739-* {:a 1})
+  ;= [[\"1683743739-1\"] nil]
+
+  ;; setting IDs for multi mode. the trailing `*` is required.
+  (q/put :my/queue \"1683743739-*\" {:a 1} {:b 2} {:c 3})
+  ;= [[\"1683743739-2\" \"1683743739-3\" \"1683743739-4\"] nil]
+
+  ;; let Redis set the ID (RECOMMENDED)
+  ;; (all of the following are identical, in effect)
   (q/put :my/queue {:a 1 :b 2 :c 3})
   (q/put :my/queue :* {:a 1 :b 2 :c 3})
   (q/put :my/queue \"*\" {:a 1 :b 2 :c 3})
   (q/put :my/queue '* {:a 1 :b 2 :c 3})
   ;= [[\"1683660166747-0\"] nil]
-
-  ;; setting ID for a single message
-  (q/put :my/queue 1683743739-0 {:a 1})
-
-  ;; setting the ID for a single message using wildcard.
-  (q/put :my/queue 1683743739-* {:a 1})
-
-  ;; setting IDs for multi mode. the trailing `*` is required.
-  (q/put :my/queue 1683743739-* {:a 1} {:b 2} {:c 3})
   ```
 
   See also:
@@ -251,8 +260,10 @@
   ([queue-name & xs]
    (let [{qname :redis-queue-name conn :queue-conn} (get-queue queue-name)
          x (first xs)
-         id-set? (or (string? x) (symbol? x))
-         id (if id-set? x "*")
+         id-set? (or (string? x)
+                     (keyword? x)
+                     (symbol? x))
+         id (if id-set? (name x) "*")
          msgs (if id-set? (rest xs) xs)]
      (try
        [(wcar conn
@@ -305,7 +316,7 @@
            '[potamic.queue :as q]
            '[clojure.core.async :as async])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:spec {:uri \"redis://localhost:6379/0\"}
   ;=  :pool #taoensso.carmine.connections.ConnectionPool{..}}
 
@@ -382,7 +393,7 @@
   (require '[potamic.db :as db]
   '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue conn)
@@ -456,7 +467,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/put :my/queue {:a 1} {:b 2} {:c 3})
@@ -527,7 +538,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue conn)
@@ -608,7 +619,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue conn)
@@ -704,7 +715,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
   (q/create-queue :my/queue conn)
@@ -756,7 +767,7 @@
   (require '[potamic.db :as db]
            '[potamic.queue :as q])
 
-  (def conn (db/make-conn :uri \"redis://localhost:6379/0\")))
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:spec {:uri \"redis://localhost:6379/0\"}
   ;=  :pool #taoensso.carmine.connections.ConnectionPool{..}}
 
