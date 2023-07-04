@@ -67,6 +67,24 @@
 ;;
 (deftest put-test
   (testing "potamic.queue/put"
+    (testing "-- manually set id, singular msg"
+      (let [[?ids1 ?err1] (q/put :my/queue "1683743739-0" {:a 1})
+            [?ids2 ?err2] (q/put :my/queue "1683743739-*" {:a 1})
+            [?ids3 ?err3] (q/put :my/queue :1683743739-* {:a 1})]
+        (is (nil? ?err1))
+        (is (= (count ?ids1) 1))
+        (is (re-find id-pat (first ?ids1)))
+        (is (nil? ?err2))
+        (is (= (count ?ids2) 1))
+        (is (re-find id-pat (first ?ids2)))
+        (is (nil? ?err3))
+        (is (= (count ?ids3) 1))
+        (is (re-find id-pat (first ?ids3)))))
+    (testing "-- manually set id, multiple msg's"
+      (let [[?ids ?err] (q/put :my/queue "1683743739-*" {:a 1} {:b 2} {:c 3})]
+        (is (nil? ?err))
+        (is (= (count ?ids) 3))
+        (is (every? identity (mapv #(re-find id-pat %) ?ids)))))
     (testing "-- singular put (auto-id)"
       (let [[?ids ?err] (q/put :my/test-queue {:a 1})]
         (is (nil? ?err))
