@@ -1,6 +1,5 @@
 (ns potamic.db-test
   (:require [clojure.test :refer [deftest is testing]]
-
             [potamic.db :as db]))
 
 (def valid-uris
@@ -22,7 +21,7 @@
 (deftest make-conn-test
   (testing "potamic.db/make-conn"
     (doseq [uri valid-uris
-            :let [[?conn ?err] (db/make-conn :uri uri)]]
-      (is (nil? ?err))
-      (is (= {:spec {:uri uri} :pool {}} (assoc ?conn :pool {}))))
+            :let [?conn (db/make-conn :uri uri)]]
+      (is (= {:spec {:uri uri} :pool {}}
+             (assoc ?conn :pool {}))))
     )) ; end make-conn-test

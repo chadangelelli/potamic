@@ -1,10 +1,11 @@
 (ns potamic.errors-test
   (:require [clojure.test :refer [deftest is testing]]
-            [potamic.errors :as e]))
+            [potamic.errors :as e]
+            [potamic.errors.types :as et]))
 
 (deftest error-types-test
   (testing "potamic.errors/error-types"
-    (is (= e/error-types
+    (is (= et/error-types
            #{:potamic/args-err
              :potamic/db-err
              :potamic/internal-err}))
@@ -19,6 +20,7 @@
                   potamic/err-type
                   potamic/err-data]
            } (e/error {:potamic/err-type :potamic/args-err
+                       :potamic/err-fatal? false
                        :potamic/err-msg "ERROR MSG"
                        :potamic/err-data {:a 1 :b 2}})]
       (is (int? err-line))
