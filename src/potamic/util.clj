@@ -123,3 +123,7 @@
   (if (:conn x)
     (dissoc x :conn)
     x))
+
+(defn uuid
+  []
+  (java.util.UUID/randomUUID))
