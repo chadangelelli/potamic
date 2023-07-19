@@ -13,7 +13,7 @@
 </table>
 <p><strong>Examples:</strong></p>
 <pre><code class="language-clojure">(require '[potamic.db :as db]
-'[potamic.queue :as q])
+         '[potamic.queue :as q])
 
 (def conn (db/make-conn :uri "redis://localhost:6379/0"))
 ;= {:spec {:uri "redis://localhost:6379/0"}
@@ -286,14 +286,22 @@
 (def conn (db/make-conn :uri "redis://localhost:6379/0"))
 ;= {:uri "redis://localhost:6379/0", :pool {}}
 
+(q/create-queue :my/queue conn :group :my/consumer)
+;= [true nil]
+
 (q/put :my/queue {:a 1} {:b 2} {:c 3})
-;= [["1683661383518-0" "1683661383518-1" "1683661383518-2"] nil]
+;= [["1689783633670-0" "1689783633670-1" "1689783633670-2"] nil]
 
-(read-next! 1 :from :my/queue :as :my/consumer1)
+(q/read-next! 1 :from :my/queue :as :my/consumer)
+;= [({:id "1689783633670-0", :msg {:a "1"}}) nil]
 
-(read-next! :all :from :my/queue :as :my/consumer1 :block 2000)
-(read-next! :all :from :my/queue :as :my/consumer1 :block [2 :seconds])
-;=
+(q/read-next! :all :from :my/queue :as :my/consumer :block 2000)
+;= [({:id "1689783633670-1", :msg {:b "2"}}
+;=   {:id "1689783633670-2", :msg {:c "3"}})
+;=  nil]
+
+(q/read-next! :all :from :my/queue :as :my/consumer :block 1000)
+;= [nil nil]
 </code></pre>
 <p>See also:</p>
 <ul>
@@ -307,7 +315,7 @@
 <pre><code class="language-clojure">({:id ID
   :consumer NAME
   :milliseconds-since-delivered MILLISECONDS
-  :delivered-n-times N}
+  :times-delivered N}
  ..)
 </code></pre>
 <table>
@@ -343,14 +351,14 @@
 ;= [({:id "1683944086236-0"
 ;=    :consumer "consumer/one"
 ;=    :milliseconds-since-delivered 9547
-;=    :delivered-n-times 1})
+;=    :times-delivered 1})
 ;=  nil]
 
 (q/read-pending 10 :from :my/queue :for :consumer/one :start '- :end '+)
 ;= [({:id "1683944086236-0"
 ;=    :consumer "consumer/one"
 ;=    :milliseconds-since-delivered 16768
-;=    :delivered-n-times 1})
+;=    :times-delivered 1})
 ;= nil]
 
 (q/read-pending 1
@@ -361,7 +369,7 @@
 ;= [({:id "1683944086236-0"
 ;=    :consumer "consumer/one"
 ;=    :milliseconds-since-delivered 144556
-;=    :delivered-n-times 1})
+;=    :times-delivered 1})
 ;=  nil]
 </code></pre>
 <p>See also:</p>

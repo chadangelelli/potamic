@@ -154,7 +154,7 @@
 
   ```clojure
   (require '[potamic.db :as db]
-  '[potamic.queue :as q])
+           '[potamic.queue :as q])
 
   (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:spec {:uri \"redis://localhost:6379/0\"}
@@ -301,6 +301,8 @@
 
   ```clojure
   [{:id ID :msg MSG} ..]
+  ; or
+  nil
   ```
 
   | Option   | Default Value                |
@@ -366,7 +368,7 @@
                     first
                     second
                     -make-read-result)]
-        [res nil])
+        [(seq res) nil])
       (catch Throwable t
         [nil (Throwable->map t)]))))
 
@@ -379,6 +381,8 @@
 
   ```clojure
   [{:id ID :msg MSG} ..]
+  ; or
+  nil
   ```
 
   | Option   | Default Value      |
@@ -444,7 +448,7 @@
                                     (when cnt [:count cnt])])
                 res (-> (wcar conn (apply car/xrange cmd))
                         -make-read-result)]
-            [res nil])
+            [(seq res) nil])
           (catch Throwable t
             [nil (Throwable->map t)]))))))
 
@@ -456,6 +460,8 @@
 
   ```clojure
   [{:id ID :msg MSG} ..]
+  ; or
+  nil
   ```
 
   _NOTE_: `Readers` are responsible for declaring messages \"processed\"
@@ -470,14 +476,22 @@
   (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
+  (q/create-queue :my/queue conn :group :my/consumer)
+  ;= [true nil]
+
   (q/put :my/queue {:a 1} {:b 2} {:c 3})
-  ;= [[\"1683661383518-0\" \"1683661383518-1\" \"1683661383518-2\"] nil]
+  ;= [[\"1689783633670-0\" \"1689783633670-1\" \"1689783633670-2\"] nil]
 
-  (read-next! 1 :from :my/queue :as :my/consumer1)
+  (q/read-next! 1 :from :my/queue :as :my/consumer)
+  ;= [({:id \"1689783633670-0\", :msg {:a \"1\"}}) nil]
 
-  (read-next! :all :from :my/queue :as :my/consumer1 :block 2000)
-  (read-next! :all :from :my/queue :as :my/consumer1 :block [2 :seconds])
-  ;=
+  (q/read-next! :all :from :my/queue :as :my/consumer :block 2000)
+  ;= [({:id \"1689783633670-1\", :msg {:b \"2\"}}
+  ;=   {:id \"1689783633670-2\", :msg {:c \"3\"}})
+  ;=  nil]
+
+  (q/read-next! :all :from :my/queue :as :my/consumer :block 1000)
+  ;= [nil nil]
   ```
 
   See also:
@@ -493,14 +507,14 @@
     (try
       (let [cmd (util/prep-cmd
                   [[:group group as]
-                   (when block [:block block])
+                   (when block [:block (util/time->milliseconds block)])
                    (when (not= consume :all) [:count consume])
                    [:streams qname ">"]])
             res (-> (wcar conn (apply car/xreadgroup cmd))
                     first
                     second
                     -make-read-result)]
-        [res nil])
+        [(seq res) nil])
       (catch Throwable t
         [nil (Throwable->map t)]))))
 
@@ -587,7 +601,7 @@
           {:id id
            :consumer c
            :milliseconds-since-delivered ms
-           :delivered-n-times n}
+           :times-delivered n}
           )
         r))
 
@@ -602,7 +616,7 @@
   ({:id ID
     :consumer NAME
     :milliseconds-since-delivered MILLISECONDS
-    :delivered-n-times N}
+    :times-delivered N}
    ..)
   ```
 
@@ -637,14 +651,14 @@
   ;= [({:id \"1683944086236-0\"
   ;=    :consumer \"consumer/one\"
   ;=    :milliseconds-since-delivered 9547
-  ;=    :delivered-n-times 1})
+  ;=    :times-delivered 1})
   ;=  nil]
 
   (q/read-pending 10 :from :my/queue :for :consumer/one :start '- :end '+)
   ;= [({:id \"1683944086236-0\"
   ;=    :consumer \"consumer/one\"
   ;=    :milliseconds-since-delivered 16768
-  ;=    :delivered-n-times 1})
+  ;=    :times-delivered 1})
   ;= nil]
 
   (q/read-pending 1
@@ -655,7 +669,7 @@
   ;= [({:id \"1683944086236-0\"
   ;=    :consumer \"consumer/one\"
   ;=    :milliseconds-since-delivered 144556
-  ;=    :delivered-n-times 1})
+  ;=    :times-delivered 1})
   ;=  nil]
   ```
 
@@ -747,7 +761,7 @@
     (try
       (let [cmd (util/prep-cmd [(into [qname group] msg-ids)])
             res (wcar conn (apply car/xack cmd))]
-        [res nil])
+        [(seq res) nil])
       (catch Throwable t
         [nil (Throwable->map t)]))))
 
