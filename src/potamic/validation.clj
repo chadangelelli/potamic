@@ -1,7 +1,8 @@
 (ns potamic.validation
   (:require
     [malli.core :as m]
-    [malli.error :as me]))
+    [malli.error :as me])
+  (:gen-class))
 
 (def re-redis-uri #"redis://(\w+)?(:\w+@)?(\w+)|(\d+\.\d+\.\d+\.\d+)(:\d+)?(/\d+)?")
 

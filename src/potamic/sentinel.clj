@@ -11,7 +11,8 @@
             [potamic.util :as pu]
             [potamic.validation :as v]
             [taoensso.carmine :as car :refer [wcar]]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log])
+  (:gen-class))
 
 (def ^{:private true} STQ-LABEL (str "[" GREEN "potamic.sentinel" NC "]"))
 

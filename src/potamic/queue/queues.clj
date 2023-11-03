@@ -1,4 +1,5 @@
-(ns potamic.queue.queues)
+(ns potamic.queue.queues
+  (:gen-class))
 
 (def
   queues_

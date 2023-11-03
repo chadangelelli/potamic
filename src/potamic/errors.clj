@@ -1,6 +1,7 @@
 (ns potamic.errors
   (:require [potamic.errors.validation :as pv]
-            [potamic.validation :as v]))
+            [potamic.validation :as v])
+  (:gen-class))
 
 (defmacro error
   "Returns Potamic Error. Required keys are `:potamic/err-type` (one of

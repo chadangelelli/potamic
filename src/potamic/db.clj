@@ -3,7 +3,8 @@
   (:require [potamic.errors :as e]
             [potamic.validation :as v]
             [potamic.db.validation :as dbv]
-            [taoensso.carmine :as car]))
+            [taoensso.carmine :as car])
+  (:gen-class))
 
 (defn make-conn
   "Creates a connection for Redis. Returns `conn` or throws Potamic Error.

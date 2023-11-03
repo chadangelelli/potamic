@@ -8,7 +8,8 @@
             [potamic.util :as util]
             [potamic.validation :as v]
             [potamic.queue.validation :as qv]
-            [potamic.queue.queues :as queues]))
+            [potamic.queue.queues :as queues])
+  (:gen-class))
 
 (defn get-queue
   "Returns queue spec for `queue-name`.

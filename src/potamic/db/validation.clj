@@ -1,6 +1,7 @@
 (ns potamic.db.validation
   (:require [malli.core :as malli]
-            [potamic.validation :as v]))
+            [potamic.validation :as v])
+  (:gen-class))
 
 (def Valid-Conn
   (malli/schema

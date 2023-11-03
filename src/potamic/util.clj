@@ -1,6 +1,7 @@
 (ns potamic.util
   "Common utilities."
-  (:require [com.rpl.specter :as s]))
+  (:require [com.rpl.specter :as s])
+  (:gen-class))
 
 (defn ->str
   "Returns a string representation of symbol. This is similar to calling `str`
