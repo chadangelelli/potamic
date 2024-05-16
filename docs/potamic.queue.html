@@ -219,6 +219,8 @@
 </div></div></div><div class="public anchor" id="var-read"><h3>read</h3><div class="usage"><code>(read queue-name &amp; {:keys [start block], cnt :count, :or {start 0}})</code></div><div class="doc"><div class="markdown"><p>Reads messages from a queue. Returns vector of <code>[?msgs ?err]</code>. This function wraps Redis’ <code>XREAD</code>. It does not involve groups, nor does it track pending entries. Also, it limits read to a single queue (stream).</p>
 <p><code>?msgs</code> is of the form:</p>
 <pre><code class="language-clojure">[{:id ID :msg MSG} ..]
+; or
+nil
 </code></pre>
 <table>
 <thead>
@@ -277,6 +279,8 @@
 </div></div></div><div class="public anchor" id="var-read-next.21"><h3>read-next!</h3><div class="usage"><code>(read-next! consume &amp; {:keys [from as block]})</code></div><div class="doc"><div class="markdown"><p>Reads next message(s) from a queue as consumer for queue group, side-effecting Redis’ Pending Entries List. Returns vector of <code>[?msgs ?err]</code>.</p>
 <p><code>?msgs</code> is of the form:</p>
 <pre><code class="language-clojure">[{:id ID :msg MSG} ..]
+; or
+nil
 </code></pre>
 <p><em>NOTE</em>: <code>Readers</code> are responsible for declaring messages “processed” by calling <code>potamic.queue/set-processed!</code>.</p>
 <p><strong>Examples:</strong></p>
@@ -423,6 +427,8 @@
 </div></div></div><div class="public anchor" id="var-read-range"><h3>read-range</h3><div class="usage"><code>(read-range queue-name &amp; opts)</code></div><div class="doc"><div class="markdown"><p>Reads a range of messages from a queue. Returns vector of <code>[?msgs ?err]</code>. This function wraps Redis’ <code>XRANGE</code>. It does not involve groups, nor does it track pending entries.</p>
 <p><code>?msgs</code> is of the form:</p>
 <pre><code class="language-clojure">[{:id ID :msg MSG} ..]
+; or
+nil
 </code></pre>
 <table>
 <thead>

@@ -10,7 +10,7 @@ html, body {
     color: #ECEFF4;
 
     scrollbar-width: thin !important;
-    scrollbar-color: blue orange !important;
+    scrollbar-color: #3d414c #282f3d !important;
 }
 
 body::-webkit-scrollbar,
