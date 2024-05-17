@@ -869,8 +869,9 @@
       (if ?create-err
         (let [err (e/error
                     {:potamic/err-type :potamic/internal-err
+                     :potamic/err-fatal? true
                      :potamic/err-msg (str "Could not create queue for "
-                                         "Sentinel '" queue-name "'.")
+                                           "Sentinel '" queue-name "'.")
                      :potamic/err-data {:this this :err ?create-err}})]
           (e/throw-potamic-error err))
         (do
@@ -990,6 +991,7 @@
                                     args)]
       (let [err (e/error
                   {:potamic/err-type :potamic/args-err
+                   :potamic/err-fatal? true
                    :potamic/err-msg (str "Invalid args provided to "
                                          "potamic.sentinel/create-sentinel.")
                    :potamic/err-data {:args args
