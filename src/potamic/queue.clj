@@ -194,11 +194,10 @@
                                                            group-name
                                                            init-id)
             new-queue {:queue-name queue-name
-                      :queue-conn conn
-                      :group-name group-name
-                      :redis-queue-name (util/->str queue-name)
-                      :redis-group-name (util/->str group-name)}
-            ]
+                       :queue-conn conn
+                       :group-name group-name
+                       :redis-queue-name (util/->str queue-name)
+                       :redis-group-name (util/->str group-name)}]
         (if stream-initialized?
           (do (swap! queues/queues_ assoc queue-name new-queue)
               [true nil])

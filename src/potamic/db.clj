@@ -28,8 +28,7 @@
                           :potamic/err-fatal? true
                           :potamic/err-msg (str "Invalid args provided to "
                                                 "potamic.db/make-conn")
-                          :potamic/err-data {:args args :err args-err}})
-            ])
-
-    {:spec {:uri uri}
-     :pool (or pool (car/connection-pool {}))})))
+                          :potamic/err-data {:args args :err args-err}})]
+        (e/throw-potamic-error err))
+      {:spec {:uri uri}
+       :pool (or pool (car/connection-pool {}))})))
