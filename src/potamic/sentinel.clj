@@ -3,7 +3,7 @@
   {:added "0.1"
    :author "Chad Angelelli"}
   (:require [clojure.core.async :as async]
-            [potamic.db]
+            [potamic.db :as db]
             [potamic.errors :as e]
             [potamic.fmt :refer [GREEN NC]]
             [potamic.queue :as p]
@@ -44,7 +44,7 @@
               :frequency 2000
               :handler (fn [this]
                          (println \"RUN:\"
-                           (q/get-sentinel-state-attr this :n-runs)))}))
+                           (q/get-state-attr this :n-runs)))}))
     ;= #potamic.sentinel.Sentinel
     ;= {:queue-conn
     ;=  {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
@@ -78,17 +78,17 @@
     See also:
 
     - `potamic.sentinel/create-sentinel`
-    - `potamic.sentinel/get-sentinel-init-id`
-    - `potamic.sentinel/get-sentinel-frequency`
-    - `potamic.sentinel/get-sentinel-start-offset`
-    - `potamic.sentinel/get-sentinel-queue-conn`
-    - `potamic.sentinel/get-sentinel-queue-name`
-    - `potamic.sentinel/get-sentinel-queue-group`
-    - `potamic.sentinel/get-sentinel-handler`
-    - `potamic.sentinel/get-sentinel-signal-channel`
-    - `potamic.sentinel/get-sentinel-state`
-    - `potamic.sentinel/get-sentinel-state-attr`
-    - `potamic.sentinel/set-sentinel-state-attr`
+    - `potamic.sentinel/get-init-id`
+    - `potamic.sentinel/get-frequency`
+    - `potamic.sentinel/get-start-offset`
+    - `potamic.sentinel/get-queue-conn`
+    - `potamic.sentinel/get-queue-name`
+    - `potamic.sentinel/get-queue-group`
+    - `potamic.sentinel/get-handler`
+    - `potamic.sentinel/get-signal-channel`
+    - `potamic.sentinel/get-state`
+    - `potamic.sentinel/get-state-attr`
+    - `potamic.sentinel/set-state-attr`
     - `potamic.sentinel/stop-sentinel!`")
 
   (stop-sentinel!
@@ -107,7 +107,7 @@
               :frequency 2000
               :handler (fn [this]
                          (println \"RUN:\"
-                           (q/get-sentinel-state-attr this :n-runs)))}))
+                           (q/get-state-attr this :n-runs)))}))
     ;= #potamic.sentinel.Sentinel
     ;= {:queue-conn
     ;=  {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
@@ -146,20 +146,20 @@
     See also:
 
     - `potamic.sentinel/create-sentinel`
-    - `potamic.sentinel/get-sentinel-init-id`
-    - `potamic.sentinel/get-sentinel-frequency`
-    - `potamic.sentinel/get-sentinel-start-offset`
-    - `potamic.sentinel/get-sentinel-queue-conn`
-    - `potamic.sentinel/get-sentinel-queue-name`
-    - `potamic.sentinel/get-sentinel-queue-group`
-    - `potamic.sentinel/get-sentinel-handler`
-    - `potamic.sentinel/get-sentinel-signal-channel`
-    - `potamic.sentinel/get-sentinel-state`
-    - `potamic.sentinel/get-sentinel-state-attr`
-    - `potamic.sentinel/set-sentinel-state-attr`
+    - `potamic.sentinel/get-init-id`
+    - `potamic.sentinel/get-frequency`
+    - `potamic.sentinel/get-start-offset`
+    - `potamic.sentinel/get-queue-conn`
+    - `potamic.sentinel/get-queue-name`
+    - `potamic.sentinel/get-queue-group`
+    - `potamic.sentinel/get-handler`
+    - `potamic.sentinel/get-signal-channel`
+    - `potamic.sentinel/get-state`
+    - `potamic.sentinel/get-state-attr`
+    - `potamic.sentinel/set-state-attr`
     - `potamic.sentinel/start-sentinel!`")
 
-  (get-sentinel-init-id
+  (get-init-id
     [this]
     "Returns init-id for Sentinel.
 
@@ -175,7 +175,7 @@
               :frequency 2000
               :handler (fn [this]
                          (println \"RUN:\"
-                           (q/get-sentinel-state-attr this :n-runs)))}))
+                           (q/get-state-attr this :n-runs)))}))
     ;= #potamic.sentinel.Sentinel
     ;= {:queue-conn
     ;=  {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
@@ -193,27 +193,27 @@
     ;=                :stopped? false
     ;=                :n-runs 0} 0x217abcc9]}
 
-    (q/get-sentinel-init-id s)
+    (q/get-init-id s)
     ;= 0
     ```
 
     See also:
 
     - `potamic.sentinel/create-sentinel`
-    - `potamic.sentinel/get-sentinel-frequency`
-    - `potamic.sentinel/get-sentinel-start-offset`
-    - `potamic.sentinel/get-sentinel-queue-conn`
-    - `potamic.sentinel/get-sentinel-queue-name`
-    - `potamic.sentinel/get-sentinel-queue-group`
-    - `potamic.sentinel/get-sentinel-handler`
-    - `potamic.sentinel/get-sentinel-signal-channel`
-    - `potamic.sentinel/get-sentinel-state`
-    - `potamic.sentinel/get-sentinel-state-attr`
-    - `potamic.sentinel/set-sentinel-state-attr`
+    - `potamic.sentinel/get-frequency`
+    - `potamic.sentinel/get-start-offset`
+    - `potamic.sentinel/get-queue-conn`
+    - `potamic.sentinel/get-queue-name`
+    - `potamic.sentinel/get-queue-group`
+    - `potamic.sentinel/get-handler`
+    - `potamic.sentinel/get-signal-channel`
+    - `potamic.sentinel/get-state`
+    - `potamic.sentinel/get-state-attr`
+    - `potamic.sentinel/set-state-attr`
     - `potamic.sentinel/start-sentinel!`
     - `potamic.sentinel/stop-sentinel!`")
 
-  (get-sentinel-frequency
+  (get-frequency
     [this]
     "Returns frequency for Sentinel.
 
@@ -231,7 +231,7 @@
               :frequency 2000
               :handler (fn [this]
                          (println \"RUN:\"
-                           (q/get-sentinel-state-attr this :n-runs)))}))
+                           (q/get-state-attr this :n-runs)))}))
     ;= #potamic.sentinel.Sentinel
     ;= {:queue-conn
     ;=  {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
@@ -249,27 +249,27 @@
     ;=                :stopped? false
     ;=                :n-runs 0} 0x217abcc9]}
 
-    (q/get-sentinel-frequency s)
+    (q/get-frequency s)
     ;= 2000
     ```
 
     See also:
 
     - `potamic.sentinel/create-sentinel`
-    - `potamic.sentinel/get-sentinel-init-id`
-    - `potamic.sentinel/get-sentinel-start-offset`
-    - `potamic.sentinel/get-sentinel-queue-conn`
-    - `potamic.sentinel/get-sentinel-queue-name`
-    - `potamic.sentinel/get-sentinel-queue-group`
-    - `potamic.sentinel/get-sentinel-handler`
-    - `potamic.sentinel/get-sentinel-signal-channel`
-    - `potamic.sentinel/get-sentinel-state`
-    - `potamic.sentinel/get-sentinel-state-attr`
-    - `potamic.sentinel/set-sentinel-state-attr`
+    - `potamic.sentinel/get-init-id`
+    - `potamic.sentinel/get-start-offset`
+    - `potamic.sentinel/get-queue-conn`
+    - `potamic.sentinel/get-queue-name`
+    - `potamic.sentinel/get-queue-group`
+    - `potamic.sentinel/get-handler`
+    - `potamic.sentinel/get-signal-channel`
+    - `potamic.sentinel/get-state`
+    - `potamic.sentinel/get-state-attr`
+    - `potamic.sentinel/set-state-attr`
     - `potamic.sentinel/start-sentinel!`
     - `potamic.sentinel/stop-sentinel!`")
 
-  (get-sentinel-start-offset
+  (get-start-offset
     [this]
     "Returns start offset for Sentinel.
 
@@ -287,7 +287,7 @@
               :frequency 2000
               :handler (fn [this]
                          (println \"RUN:\"
-                           (q/get-sentinel-state-attr this :n-runs)))}))
+                           (q/get-state-attr this :n-runs)))}))
     ;= #potamic.sentinel.Sentinel
     ;= {:queue-conn
     ;=  {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
@@ -305,27 +305,27 @@
     ;=                :stopped? false
     ;=                :n-runs 0} 0x217abcc9]}
 
-    (q/get-sentinel-start-offset s)
+    (q/get-start-offset s)
     ;= 0
     ```
 
     See also:
 
     - `potamic.sentinel/create-sentinel`
-    - `potamic.sentinel/get-sentinel-init-id`
-    - `potamic.sentinel/get-sentinel-frequency`
-    - `potamic.sentinel/get-sentinel-queue-conn`
-    - `potamic.sentinel/get-sentinel-queue-name`
-    - `potamic.sentinel/get-sentinel-queue-group`
-    - `potamic.sentinel/get-sentinel-handler`
-    - `potamic.sentinel/get-sentinel-signal-channel`
-    - `potamic.sentinel/get-sentinel-state`
-    - `potamic.sentinel/get-sentinel-state-attr`
-    - `potamic.sentinel/set-sentinel-state-attr`
+    - `potamic.sentinel/get-init-id`
+    - `potamic.sentinel/get-frequency`
+    - `potamic.sentinel/get-queue-conn`
+    - `potamic.sentinel/get-queue-name`
+    - `potamic.sentinel/get-queue-group`
+    - `potamic.sentinel/get-handler`
+    - `potamic.sentinel/get-signal-channel`
+    - `potamic.sentinel/get-state`
+    - `potamic.sentinel/get-state-attr`
+    - `potamic.sentinel/set-state-attr`
     - `potamic.sentinel/start-sentinel!`
     - `potamic.sentinel/stop-sentinel!`")
 
-  (get-sentinel-queue-conn
+  (get-queue-conn
     [this]
     "Returns queue connection for Sentinel.
 
@@ -343,7 +343,7 @@
               :frequency 2000
               :handler (fn [this]
                          (println \"RUN:\"
-                           (q/get-sentinel-state-attr this :n-runs)))}))
+                           (q/get-state-attr this :n-runs)))}))
     ;= #potamic.sentinel.Sentinel
     ;= {:queue-conn
     ;=  {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
@@ -361,7 +361,7 @@
     ;=                :stopped? false
     ;=                :n-runs 0} 0x217abcc9]}
 
-    (q/get-sentinel-queue-conn s)
+    (q/get-queue-conn s)
     ;= {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
     ;=  :pool
     ;=  #taoensso.carmine.connections.ConnectionPool
@@ -371,20 +371,20 @@
     See also:
 
     - `potamic.sentinel/create-sentinel`
-    - `potamic.sentinel/get-sentinel-init-id`
-    - `potamic.sentinel/get-sentinel-frequency`
-    - `potamic.sentinel/get-sentinel-start-offset`
-    - `potamic.sentinel/get-sentinel-queue-name`
-    - `potamic.sentinel/get-sentinel-queue-group`
-    - `potamic.sentinel/get-sentinel-handler`
-    - `potamic.sentinel/get-sentinel-signal-channel`
-    - `potamic.sentinel/get-sentinel-state`
-    - `potamic.sentinel/get-sentinel-state-attr`
-    - `potamic.sentinel/set-sentinel-state-attr`
+    - `potamic.sentinel/get-init-id`
+    - `potamic.sentinel/get-frequency`
+    - `potamic.sentinel/get-start-offset`
+    - `potamic.sentinel/get-queue-name`
+    - `potamic.sentinel/get-queue-group`
+    - `potamic.sentinel/get-handler`
+    - `potamic.sentinel/get-signal-channel`
+    - `potamic.sentinel/get-state`
+    - `potamic.sentinel/get-state-attr`
+    - `potamic.sentinel/set-state-attr`
     - `potamic.sentinel/start-sentinel!`
     - `potamic.sentinel/stop-sentinel!`")
 
-  (get-sentinel-queue-name
+  (get-queue-name
     [this]
     "Returns queue name for Sentinel.
 
@@ -402,7 +402,7 @@
               :frequency 2000
               :handler (fn [this]
                          (println \"RUN:\"
-                           (q/get-sentinel-state-attr this :n-runs)))}))
+                           (q/get-state-attr this :n-runs)))}))
     ;= #potamic.sentinel.Sentinel
     ;= {:queue-conn
     ;=  {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
@@ -420,27 +420,27 @@
     ;=                :stopped? false
     ;=                :n-runs 0} 0x217abcc9]}
 
-    (q/get-sentinel-queue-name s)
+    (q/get-queue-name s)
     ;= my/queue
     ```
 
     See also:
 
     - `potamic.sentinel/create-sentinel`
-    - `potamic.sentinel/get-sentinel-init-id`
-    - `potamic.sentinel/get-sentinel-frequency`
-    - `potamic.sentinel/get-sentinel-start-offset`
-    - `potamic.sentinel/get-sentinel-queue-conn`
-    - `potamic.sentinel/get-sentinel-queue-group`
-    - `potamic.sentinel/get-sentinel-handler`
-    - `potamic.sentinel/get-sentinel-signal-channel`
-    - `potamic.sentinel/get-sentinel-state`
-    - `potamic.sentinel/get-sentinel-state-attr`
-    - `potamic.sentinel/set-sentinel-state-attr`
+    - `potamic.sentinel/get-init-id`
+    - `potamic.sentinel/get-frequency`
+    - `potamic.sentinel/get-start-offset`
+    - `potamic.sentinel/get-queue-conn`
+    - `potamic.sentinel/get-queue-group`
+    - `potamic.sentinel/get-handler`
+    - `potamic.sentinel/get-signal-channel`
+    - `potamic.sentinel/get-state`
+    - `potamic.sentinel/get-state-attr`
+    - `potamic.sentinel/set-state-attr`
     - `potamic.sentinel/start-sentinel!`
     - `potamic.sentinel/stop-sentinel!`")
 
-  (get-sentinel-queue-group
+  (get-queue-group
     [this]
     "Returns queue group for Sentinel.
 
@@ -458,7 +458,7 @@
               :frequency 2000
               :handler (fn [this]
                          (println \"RUN:\"
-                           (q/get-sentinel-state-attr this :n-runs)))}))
+                           (q/get-state-attr this :n-runs)))}))
     ;= #potamic.sentinel.Sentinel
     ;= {:queue-conn
     ;=  {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
@@ -476,27 +476,27 @@
     ;=                :stopped? false
     ;=                :n-runs 0} 0x217abcc9]}
 
-    (q/get-sentinel-queue-group s)
+    (q/get-queue-group s)
     ;= my/group
     ```
 
     See also:
 
     - `potamic.sentinel/create-sentinel`
-    - `potamic.sentinel/get-sentinel-init-id`
-    - `potamic.sentinel/get-sentinel-frequency`
-    - `potamic.sentinel/get-sentinel-start-offset`
-    - `potamic.sentinel/get-sentinel-queue-conn`
-    - `potamic.sentinel/get-sentinel-queue-name`
-    - `potamic.sentinel/get-sentinel-handler`
-    - `potamic.sentinel/get-sentinel-signal-channel`
-    - `potamic.sentinel/get-sentinel-state`
-    - `potamic.sentinel/get-sentinel-state-attr`
-    - `potamic.sentinel/set-sentinel-state-attr`
+    - `potamic.sentinel/get-init-id`
+    - `potamic.sentinel/get-frequency`
+    - `potamic.sentinel/get-start-offset`
+    - `potamic.sentinel/get-queue-conn`
+    - `potamic.sentinel/get-queue-name`
+    - `potamic.sentinel/get-handler`
+    - `potamic.sentinel/get-signal-channel`
+    - `potamic.sentinel/get-state`
+    - `potamic.sentinel/get-state-attr`
+    - `potamic.sentinel/set-state-attr`
     - `potamic.sentinel/start-sentinel!`
     - `potamic.sentinel/stop-sentinel!`")
 
-  (get-sentinel-handler
+  (get-handler
     [this]
     "Returns handler for Sentinel.
 
@@ -514,7 +514,7 @@
               :frequency 2000
               :handler (fn [this]
                          (println \"RUN:\"
-                           (q/get-sentinel-state-attr this :n-runs)))}))
+                           (q/get-state-attr this :n-runs)))}))
     ;= #potamic.sentinel.Sentinel
     ;= {:queue-conn
     ;=  {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
@@ -532,27 +532,27 @@
     ;=                :stopped? false
     ;=                :n-runs 0} 0x217abcc9]}
 
-    (q/get-sentinel-handler s)
+    (q/get-handler s)
     ;= #function[user/fn--37246]
     ```
 
     See also:
 
     - `potamic.sentinel/create-sentinel`
-    - `potamic.sentinel/get-sentinel-init-id`
-    - `potamic.sentinel/get-sentinel-frequency`
-    - `potamic.sentinel/get-sentinel-start-offset`
-    - `potamic.sentinel/get-sentinel-queue-conn`
-    - `potamic.sentinel/get-sentinel-queue-name`
-    - `potamic.sentinel/get-sentinel-queue-group`
-    - `potamic.sentinel/get-sentinel-signal-channel`
-    - `potamic.sentinel/get-sentinel-state`
-    - `potamic.sentinel/get-sentinel-state-attr`
-    - `potamic.sentinel/set-sentinel-state-attr`
+    - `potamic.sentinel/get-init-id`
+    - `potamic.sentinel/get-frequency`
+    - `potamic.sentinel/get-start-offset`
+    - `potamic.sentinel/get-queue-conn`
+    - `potamic.sentinel/get-queue-name`
+    - `potamic.sentinel/get-queue-group`
+    - `potamic.sentinel/get-signal-channel`
+    - `potamic.sentinel/get-state`
+    - `potamic.sentinel/get-state-attr`
+    - `potamic.sentinel/set-state-attr`
     - `potamic.sentinel/start-sentinel!`
     - `potamic.sentinel/stop-sentinel!`")
 
-  (get-sentinel-signal-channel
+  (get-signal-channel
     [this]
     "Returns signal channel for Sentinel.
 
@@ -570,7 +570,7 @@
               :frequency 2000
               :handler (fn [this]
                          (println \"RUN:\"
-                           (q/get-sentinel-state-attr this :n-runs)))}))
+                           (q/get-state-attr this :n-runs)))}))
     ;= #potamic.sentinel.Sentinel
     ;= {:queue-conn
     ;=  {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
@@ -588,7 +588,7 @@
     ;=                :stopped? false
     ;=                :n-runs 0} 0x217abcc9]}
 
-    (q/get-sentinel-signal-channel s)
+    (q/get-signal-channel s)
     ;= #object[clojure.core.async.impl.channels.ManyToManyChannel
     ;=         0x44973096
     ;=         \"clojure.core.async.impl.channels.ManyToManyChannel@44973096\"]
@@ -597,20 +597,20 @@
     See also:
 
     - `potamic.sentinel/create-sentinel`
-    - `potamic.sentinel/get-sentinel-init-id`
-    - `potamic.sentinel/get-sentinel-frequency`
-    - `potamic.sentinel/get-sentinel-start-offset`
-    - `potamic.sentinel/get-sentinel-queue-conn`
-    - `potamic.sentinel/get-sentinel-queue-name`
-    - `potamic.sentinel/get-sentinel-queue-group`
-    - `potamic.sentinel/get-sentinel-handler`
-    - `potamic.sentinel/get-sentinel-state`
-    - `potamic.sentinel/get-sentinel-state-attr`
-    - `potamic.sentinel/set-sentinel-state-attr`
+    - `potamic.sentinel/get-init-id`
+    - `potamic.sentinel/get-frequency`
+    - `potamic.sentinel/get-start-offset`
+    - `potamic.sentinel/get-queue-conn`
+    - `potamic.sentinel/get-queue-name`
+    - `potamic.sentinel/get-queue-group`
+    - `potamic.sentinel/get-handler`
+    - `potamic.sentinel/get-state`
+    - `potamic.sentinel/get-state-attr`
+    - `potamic.sentinel/set-state-attr`
     - `potamic.sentinel/start-sentinel!`
     - `potamic.sentinel/stop-sentinel!`")
 
-  (get-sentinel-state
+  (get-state
     [this]
     "Returns all state for Sentinel.
 
@@ -626,7 +626,7 @@
               :frequency 2000
               :handler (fn [this]
                          (println \"RUN:\"
-                           (q/get-sentinel-state-attr this :n-runs)))}))
+                           (q/get-state-attr this :n-runs)))}))
     ;= #potamic.sentinel.Sentinel
     ;= {:queue-conn
     ;=  {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
@@ -644,7 +644,7 @@
     ;=                :stopped? false
     ;=                :n-runs 0} 0x217abcc9]}
 
-    (q/get-sentinel-state s)
+    (q/get-state s)
     ;= {:started? false, :stopped? false, :n-runs 0}
 
     (do (q/start-sentinel! s) nil)
@@ -655,7 +655,7 @@
     ;= RUN: 2
     ;= RUN: 3
 
-    (q/get-sentinel-state s)
+    (q/get-state s)
     ;= {:started? true, :stopped? false, :n-runs 4}
 
     (q/stop-sentinel! s)
@@ -663,27 +663,27 @@
     ;= 2023-06-30T17:06:39.462Z m INFO [potamic.sentinel:628] - \\
     ;= [potamic.sentinel] Stopped Sentinel for  my/queue
 
-    (q/get-sentinel-state s)
+    (q/get-state s)
     ;= {:started? false, :stopped? true, :n-runs 7}
     ```
 
     See also:
 
     - `potamic.sentinel/create-sentinel`
-    - `potamic.sentinel/get-sentinel-init-id`
-    - `potamic.sentinel/get-sentinel-frequency`
-    - `potamic.sentinel/get-sentinel-start-offset`
-    - `potamic.sentinel/get-sentinel-queue-conn`
-    - `potamic.sentinel/get-sentinel-queue-name`
-    - `potamic.sentinel/get-sentinel-queue-group`
-    - `potamic.sentinel/get-sentinel-handler`
-    - `potamic.sentinel/get-sentinel-signal-channel`
-    - `potamic.sentinel/get-sentinel-state-attr`
-    - `potamic.sentinel/set-sentinel-state-attr`
+    - `potamic.sentinel/get-init-id`
+    - `potamic.sentinel/get-frequency`
+    - `potamic.sentinel/get-start-offset`
+    - `potamic.sentinel/get-queue-conn`
+    - `potamic.sentinel/get-queue-name`
+    - `potamic.sentinel/get-queue-group`
+    - `potamic.sentinel/get-handler`
+    - `potamic.sentinel/get-signal-channel`
+    - `potamic.sentinel/get-state-attr`
+    - `potamic.sentinel/set-state-attr`
     - `potamic.sentinel/start-sentinel!`
     - `potamic.sentinel/stop-sentinel!`")
 
-  (get-sentinel-state-attr
+  (get-state-attr
     [this attr]
     "Returns specific state attr for Sentinel.
 
@@ -707,7 +707,7 @@
               :frequency 2000
               :handler (fn [this]
                          (println \"RUN:\"
-                           (q/get-sentinel-state-attr this :n-runs)))}))
+                           (q/get-state-attr this :n-runs)))}))
     ;= #potamic.sentinel.Sentinel
     ;= {:queue-conn
     ;=  {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
@@ -725,7 +725,7 @@
     ;=                :stopped? false
     ;=                :n-runs 0} 0x217abcc9]}
 
-    (q/get-sentinel-state-attr s :started?)
+    (q/get-state-attr s :started?)
     ;= false
 
     (do (q/start-sentinel! s) nil)
@@ -736,27 +736,27 @@
     ;= RUN: 2
     ;= RUN: 3
 
-    (q/get-sentinel-state-attr s :started?)
+    (q/get-state-attr s :started?)
     ;= true
     ```
 
     See also:
 
     - `potamic.sentinel/create-sentinel`
-    - `potamic.sentinel/get-sentinel-init-id`
-    - `potamic.sentinel/get-sentinel-frequency`
-    - `potamic.sentinel/get-sentinel-start-offset`
-    - `potamic.sentinel/get-sentinel-queue-conn`
-    - `potamic.sentinel/get-sentinel-queue-name`
-    - `potamic.sentinel/get-sentinel-queue-group`
-    - `potamic.sentinel/get-sentinel-handler`
-    - `potamic.sentinel/get-sentinel-signal-channel`
-    - `potamic.sentinel/get-sentinel-state`
-    - `potamic.sentinel/set-sentinel-state-attr`
+    - `potamic.sentinel/get-init-id`
+    - `potamic.sentinel/get-frequency`
+    - `potamic.sentinel/get-start-offset`
+    - `potamic.sentinel/get-queue-conn`
+    - `potamic.sentinel/get-queue-name`
+    - `potamic.sentinel/get-queue-group`
+    - `potamic.sentinel/get-handler`
+    - `potamic.sentinel/get-signal-channel`
+    - `potamic.sentinel/get-state`
+    - `potamic.sentinel/set-state-attr`
     - `potamic.sentinel/start-sentinel!`
     - `potamic.sentinel/stop-sentinel!`")
 
-  (set-sentinel-state-attr
+  (set-state-attr
     [this k v]
     "Sets k to v in state atom. Returns Sentinel. This is primarily intended
     to be used to track encapsulated user state through a Sentinel's lifetime.
@@ -781,7 +781,7 @@
               :frequency 2000
               :handler (fn [this]
                          (println \"RUN:\"
-                           (q/get-sentinel-state-attr this :n-runs)))}))
+                           (q/get-state-attr this :n-runs)))}))
     ;= #potamic.sentinel.Sentinel
     ;= {:queue-conn
     ;=  {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
@@ -799,7 +799,7 @@
     ;=                :stopped? false
     ;=                :n-runs 0} 0x217abcc9]}
 
-    (q/set-sentinel-state-attr s :process-count 52)
+    (q/set-state-attr s :process-count 52)
     ;= #potamic.sentinel.Sentinel
     ;= {:queue-conn {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
     ;=               :pool #taoensso.carmine.connections.ConnectionPool[..]}
@@ -817,23 +817,23 @@
     ;=                :process-count 52}
     ;=               0x2a042d0a]}
 
-    (q/get-sentinel-state-attr s :process-count)
+    (q/get-state-attr s :process-count)
     ;= 52
     ```
 
     See also:
 
     - `potamic.sentinel/create-sentinel`
-    - `potamic.sentinel/get-sentinel-init-id`
-    - `potamic.sentinel/get-sentinel-frequency`
-    - `potamic.sentinel/get-sentinel-start-offset`
-    - `potamic.sentinel/get-sentinel-queue-conn`
-    - `potamic.sentinel/get-sentinel-queue-name`
-    - `potamic.sentinel/get-sentinel-queue-group`
-    - `potamic.sentinel/get-sentinel-handler`
-    - `potamic.sentinel/get-sentinel-signal-channel`
-    - `potamic.sentinel/get-sentinel-state`
-    - `potamic.sentinel/get-sentinel-state-attr`
+    - `potamic.sentinel/get-init-id`
+    - `potamic.sentinel/get-frequency`
+    - `potamic.sentinel/get-start-offset`
+    - `potamic.sentinel/get-queue-conn`
+    - `potamic.sentinel/get-queue-name`
+    - `potamic.sentinel/get-queue-group`
+    - `potamic.sentinel/get-handler`
+    - `potamic.sentinel/get-signal-channel`
+    - `potamic.sentinel/get-state`
+    - `potamic.sentinel/get-state-attr`
     - `potamic.sentinel/start-sentinel!`
     - `potamic.sentinel/stop-sentinel!`"))
 
@@ -847,25 +847,27 @@
                      signal-chan
                      state]
   SentinelProtocol
-  (get-sentinel-init-id         [_]        init-id)
-  (get-sentinel-frequency       [_]        frequency)
-  (get-sentinel-start-offset    [_]        start-offset)
-  (get-sentinel-queue-conn      [_]        queue-conn)
-  (get-sentinel-queue-name      [_]        queue-name)
-  (get-sentinel-queue-group     [_]        queue-group)
-  (get-sentinel-handler         [_]        handler)
-  (get-sentinel-signal-channel  [_]        signal-chan)
-  (get-sentinel-state           [_]        @state)
-  (get-sentinel-state-attr      [_ x]      (get @state x))
-  (set-sentinel-state-attr      [this k v] (swap! state assoc k v) this)
+  (get-init-id         [_]        init-id)
+  (get-frequency       [_]        frequency)
+  (get-start-offset    [_]        start-offset)
+  (get-queue-conn      [_]        queue-conn)
+  (get-queue-name      [_]        queue-name)
+  (get-queue-group     [_]        queue-group)
+  (get-handler         [_]        handler)
+  (get-signal-channel  [_]        signal-chan)
+  (get-state           [_]        @state)
+  (get-state-attr      [_ x]      (get @state x))
+  (set-state-attr      [this k v] (swap! state assoc k v) this)
 
   (start-sentinel! [this]
-    (let [queue-exists? (wcar queue-conn (car/exists (pu/->str queue-name)))
+    (let [queue-exists? (db/key-exists? queue-name queue-conn)
           [_ ?create-err] (when-not queue-exists?
                             (p/create-queue queue-name
                                             queue-conn
                                             :group queue-group
-                                            :init-id init-id))]
+                                            :init-id init-id)
+
+                            (log/info STQ-LABEL "Created queue: " queue-name))]
       (if ?create-err
         (let [err (e/error
                     {:potamic/err-type :potamic/internal-err
@@ -877,18 +879,18 @@
         (do
           (when (pos-int? start-offset)
             (async/<!! (async/timeout start-offset)))
-          (set-sentinel-state-attr this :started? true)
-          (set-sentinel-state-attr this :stopped? false)
-          (log/info STQ-LABEL "Started Sentinel for " queue-name)
+          (set-state-attr this :started? true)
+          (set-state-attr this :stopped? false)
+          (log/info STQ-LABEL (str "Started Sentinel:" queue-name))
           (async/go-loop
             [this this, n-runs 0]
             (let [n-runs (inc n-runs)
-                  this (set-sentinel-state-attr this :n-runs n-runs)
+                  this (set-state-attr this :n-runs n-runs)
                   [?signal _] (async/alts! [signal-chan
                                             (async/timeout frequency)])]
               (if (= ?signal :stop)
-                (do (set-sentinel-state-attr this :started? false)
-                    (set-sentinel-state-attr this :stopped? true)
+                (do (set-state-attr this :started? false)
+                    (set-state-attr this :stopped? true)
                     (log/info STQ-LABEL "Stopped Sentinel for " queue-name)
                     nil)
                 (do
@@ -897,7 +899,7 @@
           this))))
 
   (stop-sentinel! [this]
-    (async/>!! (get-sentinel-signal-channel this) :stop)))
+    (async/>!! (get-signal-channel this) :stop)))
 
 (defn create-sentinel
   "Returns a new `Sentinel` record. Once created, use the Sentinel's methods
@@ -936,7 +938,7 @@
             :frequency 2000
             :handler
             (fn [this]
-              (println \"RUN:\" (q/get-sentinel-state-attr this :n-runs)))}))
+              (println \"RUN:\" (q/get-state-attr this :n-runs)))}))
   ;= #potamic.sentinel.Sentinel
   ;= {:queue-conn
   ;=  {:spec {:uri \"redis://default:secret@localhost:6379/0\"}
@@ -958,17 +960,17 @@
 
   - `potamic.sentinel/create-sentinel`
   - `potamic.sentinel/SentinelProtocol`
-  - `potamic.sentinel/get-sentinel-init-id`
-  - `potamic.sentinel/get-sentinel-frequency`
-  - `potamic.sentinel/get-sentinel-start-offset`
-  - `potamic.sentinel/get-sentinel-queue-conn`
-  - `potamic.sentinel/get-sentinel-queue-name`
-  - `potamic.sentinel/get-sentinel-queue-group`
-  - `potamic.sentinel/get-sentinel-handler`
-  - `potamic.sentinel/get-sentinel-signal-channel`
-  - `potamic.sentinel/get-sentinel-state`
-  - `potamic.sentinel/get-sentinel-state-attr`
-  - `potamic.sentinel/set-sentinel-state-attr`
+  - `potamic.sentinel/get-init-id`
+  - `potamic.sentinel/get-frequency`
+  - `potamic.sentinel/get-start-offset`
+  - `potamic.sentinel/get-queue-conn`
+  - `potamic.sentinel/get-queue-name`
+  - `potamic.sentinel/get-queue-group`
+  - `potamic.sentinel/get-handler`
+  - `potamic.sentinel/get-signal-channel`
+  - `potamic.sentinel/get-state`
+  - `potamic.sentinel/get-state-attr`
+  - `potamic.sentinel/set-state-attr`
   - `potamic.sentinel/start-sentinel!`
   - `potamic.sentinel/stop-sentinel!`"
   [{:keys [queue-uri

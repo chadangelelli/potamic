@@ -6,8 +6,9 @@
     [clojure.core.async :as async :refer [<! >! <!! >!!]]
     [clojure.test :refer (deftest is testing use-fixtures)]
     [potamic.db]
-    [potamic.fmt :as fmt]
+    [potamic.fmt :as fmt :refer [echo BOLD NC RED GREEN]]
     [potamic.queue :as q]
+    [potamic.queue.queues :as queues]
     [potamic.sentinel :as s]
     [potamic.util :as u]
     [taoensso.carmine :as car :refer [wcar]])
@@ -24,15 +25,15 @@
     (throw (Exception. (str (fmt/make-prefix :error)
                             " Could not ping queue conn: "
                             fmt/BOLD queue-uri fmt/NC)))))
-
 (check-queue-conn)
 
-(defn flush-db
+(defn prime-db
   [f]
   (wcar conn (car/flushall))
+  (reset! queues/queues_ nil)
   (f))
 
-(use-fixtures :once flush-db)
+(use-fixtures :each prime-db)
 
 (def id-pat #"\d+-\d+")
 
@@ -49,7 +50,7 @@
      :frequency frequency
      :handler handler}))
 
-(defmacro attr* [this x] `(s/get-sentinel-state-attr ~this ~x))
+(defmacro attr* [this x] `(s/get-state-attr ~this ~x))
 
 (defn rand-int-between [mn mx] (+ (rand-int (- (+ 1 mx) mn)) mn))
 
@@ -67,7 +68,7 @@
       (is (= 0 (:start-offset s)))
       (is (= {:started? false
               :stopped? false
-              :n-runs 0} (s/get-sentinel-state s)))
+              :n-runs 0} (s/get-state s)))
       )))  ; end create-sentinel-test
 
 (deftest sentinel-runtime-test
@@ -76,15 +77,15 @@
               (fn [this]
                 (let [n-runs (attr* this :n-runs)
                       x2 (* n-runs 2)]
-                  (s/set-sentinel-state-attr this :last-n-runs n-runs)
-                  (s/set-sentinel-state-attr this :n-runs-times-2 x2)))
+                  (s/set-state-attr this :last-n-runs n-runs)
+                  (s/set-state-attr this :n-runs-times-2 x2)))
               1)]
       (try
         (testing "st.queue/start-sentinel!"
           (s/start-sentinel! s)
-          (Thread/sleep 100)
+          (<!! (async/timeout 100))
           (dotimes [_ 3]
-            (Thread/sleep 3)
+            (<!! (async/timeout 3))
             (testing "-- started?"
               (is (= (attr* s :started?) true)))
             (testing "-- (not) stopped?"
@@ -97,13 +98,30 @@
         (finally
           (testing "st.queue/stop-sentinel!"
             (s/stop-sentinel! s)
-            (Thread/sleep 100)
+            (<!! (async/timeout 100))
             (testing "-- (not) started?"
               (is (= (attr* s :started?) false)))
             (testing "-- stopped?"
               (is (= (attr* s :stopped?) true))))))
       ))) ; end sentinel-runtime-test
 
-;;TODO: add producer/consumer tests
-
+(deftest sentinel-producer-consumer-test1
+  (testing "queue read/write from within Sentinel"
+    (let [s (basic-sentinel
+              (fn [this]
+                (let [qname (s/get-queue-name this)
+                      n-runs (s/get-state-attr this :n-runs)]
+                  (if (= n-runs 2)
+                    (s/stop-sentinel! this)
+                    (q/put qname {n-runs "Message put!"}))))
+              10)]
+      (s/start-sentinel! s)
+      (<!! (async/timeout 500))
+      (let [qname (s/get-queue-name s)
+            consumer (s/get-queue-group s)
+            [msgs ?err] (q/read-next! 1 :from qname :as consumer :block 500)]
+        (is (nil? ?err))
+        (is (= (count msgs) 1))
+        (is (= (-> msgs first :msg) {"1" "Message put!"}))
+        ))))
 

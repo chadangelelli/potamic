@@ -875,6 +875,7 @@
                           (into (map #(car/xgroup-destroy qname %)
                                      groups))
                           (into (car/del qname))))
+                (swap! queues/queues_ dissoc qname)
                 [:destroyed nil]
                 (catch Exception e
                   [nil

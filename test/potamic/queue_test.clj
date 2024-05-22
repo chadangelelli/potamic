@@ -3,12 +3,14 @@
   {:added "0.1"
    :author "Chad Angelelli"}
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
+            [clojure.walk :as walk]
             [clojure.core.async :as async]
             [taoensso.carmine :as car :refer [wcar]]
             [taoensso.timbre :as timbre]
             [potamic.db :as db]
             [potamic.fmt :as fmt :refer [echo BOLD NC]]
-            [potamic.queue :as q]))
+            [potamic.queue :as q]
+            [potamic.queue.queues :as queues]))
 
 (def db-uri "redis://default:secret@localhost:6379/0")
 (def conn (db/make-conn :uri db-uri))
@@ -20,6 +22,7 @@
 (defn prime-db
   [f]
   (wcar conn (car/flushall))
+  (reset! queues/queues_ nil)
   (q/create-queue test-queue conn)
   (f)
   (q/destroy-queue! test-queue conn :unsafe true)
@@ -37,25 +40,25 @@
 (deftest get-queues-test
   (testing "potamic.queue/get-queues"
     ;; first queue created in fixture
-    (let [[ok? ?err] (q/create-queue :secondary/queue conn :group :second/group)
-          all-queues (q/get-queues)]
+    (let [[ok? ?err] (q/create-queue :secondary/queue
+                                     conn
+                                     :group :second/group)]
       (is (= ok? true))
       (is (nil? ?err))
-      (is (= (-> all-queues
-                 (assoc-in [test-queue :queue-conn :pool] {})
-                 (assoc-in [:secondary/queue :queue-conn :pool] {}))
-             {test-queue
-              {:group-name test-queue-group,
-               :queue-conn {:pool {}, :spec {:uri db-uri}},
-               :queue-name test-queue,
-               :redis-group-name "my/test-queue-group",
-               :redis-queue-name "my/test-queue"},
-              :secondary/queue
-              {:group-name :second/group
-               :queue-conn {:pool {}, :spec {:uri db-uri}},
-               :queue-name :secondary/queue,
-               :redis-group-name "second/group",
-               :redis-queue-name "secondary/queue"}}))
+      (is (=
+            {:my/test-queue {:group-name :my/test-queue-group,
+                             :queue-conn {:spec {:uri "redis://default:secret@localhost:6379/0"}},
+                             :queue-name :my/test-queue,
+                             :redis-group-name "my/test-queue-group",
+                             :redis-queue-name "my/test-queue"},
+             :secondary/queue {:group-name :second/group,
+                               :queue-conn {:spec {:uri "redis://default:secret@localhost:6379/0"}},
+                               :queue-name :secondary/queue,
+                               :redis-group-name "second/group",
+                               :redis-queue-name "secondary/queue"}}
+            (walk/postwalk (fn [x] (if (map? x) (dissoc x :pool) x))
+                           (q/get-queues))
+            ))
       ))) ; end get-queues-test
 
 (deftest get-queue-test

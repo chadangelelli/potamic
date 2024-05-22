@@ -133,3 +133,16 @@
   [e]
   (let [e* (Throwable->map e)]
     (update e* :trace #(subvec % 0 10))))
+
+(def RECURSIVE-WALK
+  "_(Implemtation detail)_
+
+  Compiled path for nested data structures."
+  (s/comp-paths
+    (s/recursive-path []
+                      #_:clj-kondo/ignore p*
+                      (s/cond-path
+                        map? (s/continue-then-stay [s/MAP-VALS p*])
+                        sequential? [s/ALL p*]
+                        s/STAY))))
+
