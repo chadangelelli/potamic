@@ -136,8 +136,8 @@
                            init-id
                            :mkstream)))
             nil)]
-    (catch Throwable t
-      [nil (Throwable->map t)])))
+    (catch Exception e
+      [nil (util/make-exception e)])))
 
 ;;TODO: add validation, errors
 ;;TODO: enforce that queue-name is a keyword (allow namespaces)
@@ -171,9 +171,7 @@
   ;= [true nil]
   ```
 
-  See also:
-  "
-  ;[queue-name conn & {:keys [group init-id] :or {init-id 0}}]
+  See also:"
   [queue-name conn & opts]
   (let [opts* (apply hash-map opts)
         group-name (or (:group opts*) (-set-default-group-name queue-name))
@@ -218,7 +216,7 @@
 
   ```clojure
   (require '[potamic.db :as db]
-           '[potamic.queue :as q])
+  '[potamic.queue :as q])
 
   (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:spec {:uri \"redis://localhost:6379/0\"}
@@ -257,21 +255,30 @@
   - `potamic.queue/read-pending-summary`
   - `potamic.queue/read-pending`
   - `potamic.queue/create-queue`"
-  ([queue-name & xs]
-   (let [{qname :redis-queue-name conn :queue-conn} (get-queue queue-name)
-         x (first xs)
-         id-set? (or (string? x)
-                     (keyword? x)
-                     (symbol? x))
-         id (if id-set? (name x) "*")
-         msgs (if id-set? (rest xs) xs)]
-     (try
-       [(wcar conn
-              :as-pipeline
-              (mapv #(apply car/xadd qname id (reduce into [] %)) msgs))
-        nil]
-       (catch Throwable t
-         [nil (Throwable->map t)])))))
+  [queue-name & xs]
+  (let [{qname :redis-queue-name conn :queue-conn} (get-queue queue-name)
+        x (first xs)
+        id-set? (or (string? x)
+                    (keyword? x)
+                    (symbol? x))
+        id (if id-set? (name x) "*")
+        msgs (if id-set? (rest xs) xs)]
+    (try
+      (let [[?err :as r
+             ] (wcar conn
+                     :as-pipeline
+                     (mapv #(apply car/xadd qname id (reduce into [] %))
+                           msgs))]
+        (if (instance? clojure.lang.ExceptionInfo ?err)
+          (throw ?err)
+          [r nil]))
+      (catch Exception e
+        (let [err {:potamic/err-type :potamic/internal-err
+                   :potamic/err-fatal? false
+                   :potamic/err-msg (.getMessage e)
+                   :potamic/err-data {:queue-name queue-name
+                                      :err (util/make-exception e)}}]
+          [nil err])))))
 
 ;;TODO: optimize key-fn algorithm
 (defn- -make-read-result
@@ -369,8 +376,8 @@
                     second
                     -make-read-result)]
         [(seq res) nil])
-      (catch Throwable t
-        [nil (Throwable->map t)]))))
+      (catch Exception e
+        [nil (util/make-exception e)]))))
 
 (defn read-range
   "Reads a range of messages from a queue. Returns vector of `[?msgs ?err]`.
@@ -449,8 +456,8 @@
                 res (-> (wcar conn (apply car/xrange cmd))
                         -make-read-result)]
             [(seq res) nil])
-          (catch Throwable t
-            [nil (Throwable->map t)]))))))
+          (catch Exception e
+            [nil (util/make-exception e)]))))))
 
 (defn read-next!
   "Reads next message(s) from a queue as consumer for queue group,
@@ -515,8 +522,8 @@
                     second
                     -make-read-result)]
         [(seq res) nil])
-      (catch Throwable t
-        [nil (Throwable->map t)]))))
+      (catch Exception e
+        [nil (util/make-exception e)]))))
 
 (defn- -make-pending-summary
   "Returns `summary` map for `potamic.queue/read-pending-summary`.
@@ -592,8 +599,8 @@
             res (-> (wcar conn (apply car/xpending cmd))
                     -make-pending-summary)]
         [res nil])
-      (catch Throwable t
-        [nil (Throwable->map t)]))))
+      (catch Exception e
+        [nil (util/make-exception e)]))))
 
 (defn- -make-pending-result
   [r]
@@ -705,12 +712,12 @@
                 res (-> (wcar conn (apply car/xpending cmd))
                         -make-pending-result)]
             [(lazy-seq res) nil])
-          (catch Throwable t
+          (catch Exception e
             [nil
              (e/error {:potamic/err-type :potamic/args-err
-                       :potamic/err-msg (.getMessage t)
+                       :potamic/err-msg (.getMessage e)
                        :potamic/err-data {:args args
-                                          :err (Throwable->map t)}})]))))))
+                                          :err (util/make-exception e)}})]))))))
 
 ;;TODO: add validation
 (defn set-processed!
@@ -762,12 +769,14 @@
       (let [cmd (util/prep-cmd [(into [qname group] msg-ids)])
             res (wcar conn (apply car/xack cmd))]
         [(seq res) nil])
-      (catch Throwable t
-        [nil (Throwable->map t)]))))
+      (catch Exception e
+        [nil (util/make-exception e)]))))
 
 (defn destroy-queue!
   "Destroys a queue (stream) and the consumer group associated with it.
-  Returns vector of `[ok? ?err]`.
+  Returns vector of `[status ?err]`. If the queue does not exist, a vector of
+  `[:nonexistent nil]` will be returned. If the queue was destroyed, a vector
+  of `[:destroyed nil]` will be returned.
 
   _WARNING_: Do not call this command unless you know it's safe to do so!
 
@@ -779,7 +788,7 @@
 
   ```clojure
   (require '[potamic.db :as db]
-           '[potamic.queue :as q])
+  '[potamic.queue :as q])
 
   (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:spec {:uri \"redis://localhost:6379/0\"}
@@ -835,40 +844,44 @@
                                         :err args-err}})]
       (let [{qname :redis-queue-name
              group :redis-group-name
-             conn :queue-conn} (get-queue queue-name)
-            [rgroups rconsumers] (wcar conn
-                                       :as-pipeline
-                                       (car/xinfo-groups qname)
-                                       (car/xinfo-consumers qname group))
-            groups (mapv #(into {} (for [[k v] (apply hash-map %)]
-                                     [(keyword k) v]))
-                         rgroups)
-            consumers (mapv #(into {} (for [[k v] (apply hash-map %)]
-                                        [(keyword k) v]))
-                            rconsumers)
-            has-pending? (pos-int? (apply max (map :pending groups)))]
-        (if (and (not unsafe?) has-pending?)
-          [nil
-           (e/error {:potamic/err-type :potamic/db-err
-                     :potamic/err-fatal? false
-                     :potamic/err-msg (str "Cannot destroy " qname
-                                           ", it has pending messages")
-                     :potamic/err-data {:args (util/remove-conn args)
-                                        :groups groups
-                                        :consumers consumers}})]
-          (try
-            (wcar conn
-                  :as-pipeline
-                  (-> (mapv #(car/xgroup-delconsumer qname group %) consumers)
-                      (into (map #(car/xgroup-destroy qname %) groups))
-                      (into (car/del qname))))
-            [true nil]
-            (catch Throwable t
+             conn :queue-conn} (get-queue queue-name)]
+        (if (= 0 (wcar conn (car/exists qname)))
+          [:nonexistent nil]
+          (let [[rgroups rconsumers] (wcar conn
+                                           :as-pipeline
+                                           (car/xinfo-groups qname)
+                                           (car/xinfo-consumers qname group))
+                groups (mapv #(into {} (for [[k v] (apply hash-map %)]
+                                         [(keyword k) v]))
+                             rgroups)
+                consumers (mapv #(into {} (for [[k v] (apply hash-map %)]
+                                            [(keyword k) v]))
+                                rconsumers)
+                has-pending? (pos-int? (apply max (map :pending groups)))]
+            (if (and (not unsafe?) has-pending?)
               [nil
                (e/error {:potamic/err-type :potamic/db-err
                          :potamic/err-fatal? false
                          :potamic/err-msg (str "Cannot destroy " qname
                                                ", it has pending messages")
                          :potamic/err-data {:args (util/remove-conn args)
-                                            :err (Throwable->map t)}})])))))))
+                                            :groups groups
+                                            :consumers consumers}})]
+              (try
+                (wcar conn
+                      :as-pipeline
+                      (-> (mapv #(car/xgroup-delconsumer qname group %)
+                                consumers)
+                          (into (map #(car/xgroup-destroy qname %)
+                                     groups))
+                          (into (car/del qname))))
+                [:destroyed nil]
+                (catch Exception e
+                  [nil
+                   (e/error {:potamic/err-type :potamic/db-err
+                             :potamic/err-fatal? false
+                             :potamic/err-msg (.getMessage e)
+                             :potamic/err-data
+                             {:queue-name queue-name
+                              :err (util/make-exception e)}})])))))))))
 

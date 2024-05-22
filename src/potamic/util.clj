@@ -128,3 +128,8 @@
 (defn uuid
   []
   (java.util.UUID/randomUUID))
+
+(defn make-exception
+  [e]
+  (let [e* (Throwable->map e)]
+    (update e* :trace #(subvec % 0 10))))
