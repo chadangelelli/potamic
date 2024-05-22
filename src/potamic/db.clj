@@ -3,7 +3,8 @@
   (:require [potamic.errors :as e]
             [potamic.validation :as v]
             [potamic.db.validation :as dbv]
-            [taoensso.carmine :as car])
+            [potamic.util :as pu]
+            [taoensso.carmine :as car :refer [wcar]])
   (:gen-class))
 
 (defn make-conn
@@ -32,3 +33,26 @@
         (e/throw-potamic-error err))
       {:spec {:uri uri}
        :pool (or pool (car/connection-pool {}))})))
+
+(defn key-exists?
+  "Returns boolean after checking if key exists in DB.
+
+  Examples:
+
+  ```clojure
+  (require '[potamic.db :as db]
+           '[potamic.queue :as q])
+
+  (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
+  ;= {:spec
+  ;=  {:uri \"redis://localhost:6379/0\"}
+  ;=   :pool #taoensso.carmine.connections.ConnectionPool[..]}
+
+  (q/create-queue :my/queue conn)
+  ;= [true nil]
+
+  (db/key-exists? :my/queue conn)
+  ;= true
+  ```"
+  [k conn]
+  (> (wcar conn (car/exists (pu/->str k))) 0))
