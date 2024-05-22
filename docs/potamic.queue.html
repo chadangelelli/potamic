@@ -29,7 +29,7 @@
 ;= [true nil]
 </code></pre>
 <p>See also:</p>
-</div></div></div><div class="public anchor" id="var-destroy-queue.21"><h3>destroy-queue!</h3><div class="usage"><code>(destroy-queue! queue-name conn &amp; opts)</code></div><div class="doc"><div class="markdown"><p>Destroys a queue (stream) and the consumer group associated with it. Returns vector of <code>[ok? ?err]</code>.</p>
+</div></div></div><div class="public anchor" id="var-destroy-queue.21"><h3>destroy-queue!</h3><div class="usage"><code>(destroy-queue! queue-name conn &amp; opts)</code></div><div class="doc"><div class="markdown"><p>Destroys a queue (stream) and the consumer group associated with it. Returns vector of <code>[status ?err]</code>. If the queue does not exist, a vector of <code>[:nonexistent nil]</code> will be returned. If the queue was destroyed, a vector of <code>[:destroyed nil]</code> will be returned.</p>
 <p><em>WARNING</em>: Do not call this command unless you know it’s safe to do so!</p>
 <table>
 <thead>
@@ -41,7 +41,7 @@
 </table>
 <p><strong>Examples:</strong></p>
 <pre><code class="language-clojure">(require '[potamic.db :as db]
-         '[potamic.queue :as q])
+'[potamic.queue :as q])
 
 (def conn (db/make-conn :uri "redis://localhost:6379/0"))
 ;= {:spec {:uri "redis://localhost:6379/0"}
@@ -177,7 +177,7 @@
 <p><em>NOTE</em>: It is highly recommended to let Redis set the ID automatically. However, if setting the ID, anything that will resolve via <code>name</code> is acceptable. <em>As a reminder: numbers cannot be quoted.</em></p>
 <p><strong>Examples:</strong></p>
 <pre><code class="language-clojure">(require '[potamic.db :as db]
-         '[potamic.queue :as q])
+'[potamic.queue :as q])
 
 (def conn (db/make-conn :uri "redis://localhost:6379/0"))
 ;= {:spec {:uri "redis://localhost:6379/0"}
