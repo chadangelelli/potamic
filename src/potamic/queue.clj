@@ -1,14 +1,15 @@
 (ns potamic.queue
-  "Implements a stream-based message queue over Redis."
+  "Implements a stream-based message queue over Redis (or KeyDB)."
   {:added "0.1"
    :author "Chad Angelelli"}
   (:refer-clojure :exclude [read])
   (:require [taoensso.carmine :as car :refer [wcar]]
+            [potamic.db :as db]
             [potamic.errors :as e]
-            [potamic.util :as util]
-            [potamic.validation :as v]
+            [potamic.queue.queues :as queues]
             [potamic.queue.validation :as qv]
-            [potamic.queue.queues :as queues])
+            [potamic.util :as util]
+            [potamic.validation :as v])
   (:gen-class))
 
 (defn get-queue
@@ -845,7 +846,7 @@
       (let [{qname :redis-queue-name
              group :redis-group-name
              conn :queue-conn} (get-queue queue-name)]
-        (if (= 0 (wcar conn (car/exists qname)))
+        (if-not (db/key-exists? qname conn)
           [:nonexistent nil]
           (let [[rgroups rconsumers] (wcar conn
                                            :as-pipeline
