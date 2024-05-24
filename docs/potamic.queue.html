@@ -186,6 +186,14 @@
 (q/create-queue :my/queue conn)
 ;= [true nil]
 
+;; let Redis set the ID (RECOMMENDED)
+;; (all of the following are identical, in effect)
+(q/put :my/queue {:a 1 :b 2 :c 3})
+(q/put :my/queue :* {:a 1 :b 2 :c 3})
+(q/put :my/queue "*" {:a 1 :b 2 :c 3})
+(q/put :my/queue '* {:a 1 :b 2 :c 3})
+;= [["1683660166747-0"] nil]
+
 ;; setting ID for a single message
 (q/put :my/queue "1683743739-0" {:a 1})
 ;= [["1683743739-0"] nil]
@@ -198,14 +206,6 @@
 ;; setting IDs for multi mode. the trailing `*` is required.
 (q/put :my/queue "1683743739-*" {:a 1} {:b 2} {:c 3})
 ;= [["1683743739-2" "1683743739-3" "1683743739-4"] nil]
-
-;; let Redis set the ID (RECOMMENDED)
-;; (all of the following are identical, in effect)
-(q/put :my/queue {:a 1 :b 2 :c 3})
-(q/put :my/queue :* {:a 1 :b 2 :c 3})
-(q/put :my/queue "*" {:a 1 :b 2 :c 3})
-(q/put :my/queue '* {:a 1 :b 2 :c 3})
-;= [["1683660166747-0"] nil]
 </code></pre>
 <p>See also:</p>
 <ul>

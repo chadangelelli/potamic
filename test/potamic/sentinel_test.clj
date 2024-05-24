@@ -123,5 +123,4 @@
         (is (nil? ?err))
         (is (= (count msgs) 1))
         (is (= (-> msgs first :msg) {"1" "Message put!"}))
-        ))))
-
+        )))) ; end sentinel-producer-consumer-test1
