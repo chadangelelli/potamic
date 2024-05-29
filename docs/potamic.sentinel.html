@@ -749,7 +749,7 @@
 <li><code>potamic.sentinel/set-state-attr</code></li>
 <li><code>potamic.sentinel/stop-sentinel!</code></li>
 </ul>
-</div></div></div><div class="public anchor" id="var-stop-sentinel.21"><h3>stop-sentinel!</h3><div class="usage"><code>(stop-sentinel! this)</code></div><div class="doc"><div class="markdown"><p>Stops Sentinel.</p>
+</div></div></div><div class="public anchor" id="var-stop-sentinel.21"><h3>stop-sentinel!</h3><div class="usage"><code>(stop-sentinel! this)</code></div><div class="doc"><div class="markdown"><p>Stops a <code>Sentinel</code>. Returns modified Sentinal ("this ").</p>
 <p>Examples:</p>
 <pre><code class="language-clojure">(require '[potamic.sentinel :as q])
 
@@ -791,9 +791,14 @@
 ;= [...]
 
 (q/stop-sentinel! s)
-;= true
 ;= 2023-06-21T19:01:58.466Z m INFO [potamic.sentinel:262] \
 ;=   - [potamic.sentinel] Stopped Sentinel for  my/queue
+;= 2023-06-21T19:01:45.533Z m INFO [potamic.sentinel:252] \
+;=   - [potamic.sentinel] Started Sentinel for  my/queue
+;= #potamic.sentinel.Sentinel {:queue-conn [..]
+;=                     :queue-name my/queue
+;=                     :queue-group my/group
+;=                     [..]}
 </code></pre>
 <p>See also:</p>
 <ul>

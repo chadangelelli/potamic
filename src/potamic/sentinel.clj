@@ -93,7 +93,7 @@
 
   (stop-sentinel!
     [this]
-    "Stops Sentinel.
+    "Stops a `Sentinel`. Returns modified Sentinal (\"this \").
 
     Examples:
 
@@ -138,9 +138,14 @@
     ;= [...]
 
     (q/stop-sentinel! s)
-    ;= true
     ;= 2023-06-21T19:01:58.466Z m INFO [potamic.sentinel:262] \\
     ;=   - [potamic.sentinel] Stopped Sentinel for  my/queue
+    ;= 2023-06-21T19:01:45.533Z m INFO [potamic.sentinel:252] \\
+    ;=   - [potamic.sentinel] Started Sentinel for  my/queue
+    ;= #potamic.sentinel.Sentinel {:queue-conn [..]
+    ;=                     :queue-name my/queue
+    ;=                     :queue-group my/group
+    ;=                     [..]}
     ```
 
     See also:
@@ -899,7 +904,8 @@
           this))))
 
   (stop-sentinel! [this]
-    (async/>!! (get-signal-channel this) :stop)))
+    (async/go (async/>! (get-signal-channel this) :stop))
+    this))
 
 (defn create-sentinel
   "Returns a new `Sentinel` record. Once created, use the Sentinel's methods
