@@ -5,7 +5,6 @@ Potamic is a message queue implementation over Redis' Stream data type. It makes
 ### Index
 
 1. [Get Potamic](#get-potamic)
-2. [Quickstart](#quickstart)
 3. [Docs](#docs)
 4. [Running Locally](#usage-locally)
 5. [License](#license)
@@ -17,14 +16,13 @@ Potamic is a message queue implementation over Redis' Stream data type. It makes
 
 > _TODO_: Publish to Clojars
 
+```clojure
+io.github.chadangelelli/potamic #:git{:tag "v0.1.67" :sha "fdb99e0"}
+```
+
 ### Leiningen
 
-> _TODO_: Publish to Clojars
-
-<a name="quickstart"></a>
-# Quickstart
-
-> _TODO_: add quickstart
+> _TODO_: Add example
 
 <a name="docs"></a>
 # Docs
