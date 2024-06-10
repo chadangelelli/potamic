@@ -1,6 +1,7 @@
 (ns potamic.util
   "Common utilities."
-  (:require [com.rpl.specter :as s])
+  (:require [com.rpl.specter :as s]
+            [taoensso.nippy :as nippy])
   (:gen-class))
 
 (defn ->str
@@ -146,3 +147,20 @@
                         sequential? [s/ALL p*]
                         s/STAY))))
 
+(defn encode-map-vals
+  "Returns map after encoding map vals by calling `nippy/freeze` on them.
+  Nested maps are encoded wholesale as Redis/KeyDB streams don't allow nesting.
+
+  Examples:
+
+  ```clojure
+  (require '[potamic.util :as util])
+
+  (def m {:a 111 :b {:c \"333\" :d :my/namespaced-key}})
+
+  (util/encode-map-vals m)
+  ;= {:a #object[\"[B\" 0x7225a307 \"[B@7225a307\"]
+  ;=  :b #object[\"[B\" 0x141cc645 \"[B@141cc645\"]}
+  ```"
+  [m]
+  (into {} (for [[k v] m] [k (nippy/freeze v)])))

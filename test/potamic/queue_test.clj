@@ -126,7 +126,7 @@
       (is (= read1-msgs read2-msgs))
       (is (re-find id-pat (:id (first read3-msgs))))
       (is (= 1 (count read3-msgs)))
-      (is (= (:msg (first read3-msgs)) {:d "4"})))
+      (is (= (:msg (first read3-msgs)) {:d 4})))
     )) ; end read-test
 
 (deftest read-next!-test
@@ -140,15 +140,15 @@
         (is (nil? ?e))
         (is (= 1 (count ?msgs)))
         (is (re-find id-pat (:id (first ?msgs))))
-        (is (= (:msg (first ?msgs)) {:a "1"}))))
+        (is (= (:msg (first ?msgs)) {:a 1}))))
     (testing "-- read-next! :all"
       (let [[?msgs ?e] (q/read-next! 2 :from test-queue :as :my/consumer1)]
         (is (nil? ?e))
         (is (= 2 (count ?msgs)))
         (is (re-find id-pat (:id (first ?msgs))))
         (is (re-find id-pat (:id (second ?msgs))))
-        (is (= (:msg (first ?msgs)) {:b "2"}))
-        (is (= (:msg (second ?msgs)) {:c "3"}))))
+        (is (= (:msg (first ?msgs)) {:b 2}))
+        (is (= (:msg (second ?msgs)) {:c 3}))))
     )) ; end read-next!-test
 
 (deftest read-pending-test
@@ -197,10 +197,10 @@
       (is (nil? ?p2-err))
       (is (every? #(re-find id-pat %) msg-ids))
       (is (every? #(re-find id-pat %) (map :id c1-msgs)))
-      (is (= (:msg (first c1-msgs)) {:a "1"}))
-      (is (= (:msg (second c1-msgs)) {:b "2"}))
+      (is (= (:msg (first c1-msgs)) {:a 1}))
+      (is (= (:msg (second c1-msgs)) {:b 2}))
       (is (every? #(re-find id-pat %) (map :id c2-msgs)))
-      (is (= (:msg (first c2-msgs)) {:c "3"}))
+      (is (= (:msg (first c2-msgs)) {:c 3}))
       (is (= (:total p1-summary) 2))
       (is (re-find id-pat (:start p1-summary)))
       (is (re-find id-pat (:end p1-summary)))
@@ -220,12 +220,12 @@
       (is (nil? ?e2))
       (is (every? #(re-find id-pat %) (map :id r1)))
       (is (every? #(re-find id-pat %) (map :id r2)))
-      (is (= (:msg (first r1)) {:a "1"}))
-      (is (= (:msg (second r1)) {:b "2"}))
-      (is (= (:msg (nth r1 2)) {:c "3"}))
-      (is (= (:msg (first r2)) {:a "1"}))
-      (is (= (:msg (second r2)) {:b "2"}))
-      (is (= (:msg (nth r2 2)) {:c "3"}))
+      (is (= (:msg (first r1)) {:a 1}))
+      (is (= (:msg (second r1)) {:b 2}))
+      (is (= (:msg (nth r1 2)) {:c 3}))
+      (is (= (:msg (first r2)) {:a 1}))
+      (is (= (:msg (second r2)) {:b 2}))
+      (is (= (:msg (nth r2 2)) {:c 3}))
       (is (= (:msg (first r1)) (:msg (first r2)))))
     )) ; end read-range-test
 

@@ -3,13 +3,13 @@
   {:added "0.1"
    :author "Chad Angelelli"}
   (:refer-clojure :exclude [read])
-  (:require [taoensso.carmine :as car :refer [wcar]]
-            [potamic.db :as db]
+  (:require [potamic.db :as db]
             [potamic.errors :as e]
             [potamic.queue.queues :as queues]
             [potamic.queue.validation :as qv]
             [potamic.util :as util]
-            [potamic.validation :as v])
+            [potamic.validation :as v]
+            [taoensso.carmine :as car :refer [wcar]])
   (:gen-class))
 
 (defn get-queue
@@ -217,7 +217,7 @@
 
   ```clojure
   (require '[potamic.db :as db]
-  '[potamic.queue :as q])
+           '[potamic.queue :as q])
 
   (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:spec {:uri \"redis://localhost:6379/0\"}
@@ -263,7 +263,8 @@
                     (keyword? x)
                     (symbol? x))
         id (if id-set? (name x) "*")
-        msgs (if id-set? (rest xs) xs)]
+        msgs (map util/encode-map-vals
+                  (if id-set? (rest xs) xs))]
     (try
       (let [[?err :as r
              ] (wcar conn
