@@ -50,7 +50,7 @@
      :frequency frequency
      :handler handler}))
 
-(defmacro attr* [this x] `(s/get-state-attr ~this ~x))
+(defmacro attr* [this x] `(s/get-attr ~this ~x))
 
 (defn rand-int-between [mn mx] (+ (rand-int (- (+ 1 mx) mn)) mn))
 
@@ -77,8 +77,8 @@
               (fn [this]
                 (let [n-runs (attr* this :n-runs)
                       x2 (* n-runs 2)]
-                  (s/set-state-attr this :last-n-runs n-runs)
-                  (s/set-state-attr this :n-runs-times-2 x2)))
+                  (s/set-attr this :last-n-runs n-runs)
+                  (s/set-attr this :n-runs-times-2 x2)))
               1)]
       (try
         (testing "st.queue/start-sentinel!"
@@ -110,7 +110,7 @@
     (let [s (basic-sentinel
               (fn [this]
                 (let [qname (s/get-queue-name this)
-                      n-runs (s/get-state-attr this :n-runs)]
+                      n-runs (s/get-attr this :n-runs)]
                   (if (= n-runs 2)
                     (s/stop-sentinel! this)
                     (q/put qname {n-runs "Message put!"}))))
