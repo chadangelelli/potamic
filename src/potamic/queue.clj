@@ -769,8 +769,8 @@
          conn :queue-conn} (get-queue queue-name)]
     (try
       (let [cmd (util/prep-cmd [(into [qname group] msg-ids)])
-            res (wcar conn (apply car/xack cmd))]
-        [(seq res) nil])
+            n-acked (wcar conn (apply car/xack cmd))]
+        [n-acked nil])
       (catch Exception e
         [nil (util/make-exception e)]))))
 

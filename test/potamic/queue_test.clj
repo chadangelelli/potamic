@@ -229,11 +229,18 @@
       (is (= (:msg (first r1)) (:msg (first r2)))))
     )) ; end read-range-test
 
-;;TODO: add set-processed test
-;; (deftest set-processed!-test
-;;   (testing "potamic.queue/set-processed!"
-;;     (is (= 1 1))
-;;     )) ; end set-processed!-test
+(deftest set-processed!-test
+  (testing "potamic.queue/set-processed!"
+    (let [_ (q/put test-queue {:a 1} {:b 2} {:c 3})
+          [msgs ?read-err] (q/read-next! 3
+                                         :from test-queue
+                                         :as test-queue-group)
+          ids (map :id msgs)
+          [n-acked ?ack-err] (apply q/set-processed! test-queue ids)]
+      (is (nil? ?read-err))
+      (is (nil? ?ack-err))
+      (is (= 3 n-acked))
+      ))) ; end set-processed!-test
 
 (deftest delete-queue-test
   (testing "potamic.queue/delete-queue"
