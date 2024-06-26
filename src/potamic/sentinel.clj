@@ -861,8 +861,8 @@
   (get-handler         [_]        handler)
   (get-signal-channel  [_]        signal-chan)
   (get-state           [_]        @state)
-  (get-attr      [_ x]      (get @state x))
-  (set-attr      [this k v] (swap! state assoc k v) this)
+  (get-attr            [_ x]      (get @state x))
+  (set-attr            [this k v] (swap! state assoc k v) this)
 
   (start-sentinel! [this]
     (let [queue-exists? (db/key-exists? queue-name queue-conn)
