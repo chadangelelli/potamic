@@ -129,16 +129,19 @@
 (defn- -initialize-stream
   [conn queue-name group-name init-id]
   (try
-    [true (when (= "OK"
-                   (wcar conn
-                         (car/xgroup-create
-                           (util/->str queue-name)
-                           (util/->str group-name)
-                           init-id
-                           :mkstream)))
-            nil)]
+    [(= "OK"
+        (wcar conn
+              (car/xgroup-create
+                (util/->str queue-name)
+                (util/->str group-name)
+                init-id
+                :mkstream)))
+     nil]
     (catch Exception e
-      [nil (util/make-exception e)])))
+      (let [msg (.getMessage e)]
+        (if (re-find #"Consumer\s+Group.+?already\s+exists" msg)
+          [:group-exists nil]
+          [nil (util/make-exception e)])))))
 
 ;;TODO: add validation, errors
 ;;TODO: enforce that queue-name is a keyword (allow namespaces)
@@ -188,19 +191,23 @@
                                            "potamic.queue/create-queue")
                      :potamic/err-data {:args (util/remove-conn args)
                                         :err args-err}})]
-      (let [[stream-initialized? ?err] (-initialize-stream conn
-                                                           queue-name
-                                                           group-name
-                                                           init-id)
-            new-queue {:queue-name queue-name
-                       :queue-conn conn
-                       :group-name group-name
-                       :redis-queue-name (util/->str queue-name)
-                       :redis-group-name (util/->str group-name)}]
-        (if stream-initialized?
-          (do (swap! queues/queues_ assoc queue-name new-queue)
-              [true nil])
-          [nil ?err])))))
+      (let [[_ ?err] (-initialize-stream conn queue-name group-name init-id)]
+        (if ?err
+          [nil ?err]
+          (if (get-queue queue-name)
+            [nil
+             (e/error {:potamic/err-type :potamic/internal-err
+                       :potamic/err-fatal? false
+                       :potamic/err-msg (str "Queue already exists: "
+                                             queue-name)
+                       :potamic/err-data {:args (util/remove-conn args)}})]
+            (let [new-queue {:queue-name queue-name
+                             :queue-conn conn
+                             :group-name group-name
+                             :redis-queue-name (util/->str queue-name)
+                             :redis-group-name (util/->str group-name)}]
+              (swap! queues/queues_ assoc queue-name new-queue)
+              [true nil])))))))
 
 ;;TODO: add input validation for ID/MSG pairs and/or wildcar IDs for multi
 (defn put
