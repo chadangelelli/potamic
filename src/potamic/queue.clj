@@ -3,7 +3,8 @@
   {:added "0.1"
    :author "Chad Angelelli"}
   (:refer-clojure :exclude [read])
-  (:require [potamic.db :as db]
+  (:require [clojure.walk :as walk]
+            [potamic.db :as db]
             [potamic.errors :as e]
             [potamic.queue.queues :as queues]
             [potamic.queue.validation :as qv]
@@ -24,7 +25,7 @@
   (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
-  (q/create-queue :my/queue)
+  (q/create-queue! :my/queue)
   ;= [true nil]
 
   (q/get-queue :my/queue)
@@ -40,12 +41,12 @@
   See also:
 
   - `potamic.queue/get-queues`
-  - `potamic.queue/create-queue`"
+  - `potamic.queue/create-queue!`"
   [queue-name]
   (get @queues/queues_ queue-name))
 
 (defn get-queues
-  "Get all, or a subset, of queues created via `potamic.queue/create-queue`.
+  "Get all, or a subset, of queues created via `potamic.queue/create-queue!`.
   Return value varies depending on `x` input type.
 
   | Type      | Result                                         |
@@ -63,13 +64,13 @@
   (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
-  (q/create-queue :my/one conn)
+  (q/create-queue! :my/one conn)
   ;= [true nil]
 
-  (q/create-queue :my/two conn)
+  (q/create-queue! :my/two conn)
   ;= [true nil]
 
-  (q/create-queue :my/three conn)
+  (q/create-queue! :my/three conn)
   ;= [true nil]
 
   (q/get-queues)
@@ -108,7 +109,7 @@
   See also:
 
   - `potamic.queue/get-queue`
-  - `potamic.queue/create-queue`
+  - `potamic.queue/create-queue!`
   - `potamic.queue/delete-queue`"
   ([] @queues/queues_)
   ([x]
@@ -129,13 +130,14 @@
 (defn- -initialize-stream
   [conn queue-name group-name init-id]
   (try
-    [(= "OK"
-        (wcar conn
-              (car/xgroup-create
-                (util/->str queue-name)
-                (util/->str group-name)
-                init-id
-                :mkstream)))
+    [(and (= "OK"
+             (wcar conn
+                   (car/xgroup-create
+                     (util/->str queue-name)
+                     (util/->str group-name)
+                     init-id
+                     :mkstream)))
+          :group-created)
      nil]
     (catch Exception e
       (let [msg (.getMessage e)]
@@ -143,17 +145,29 @@
           [:group-exists nil]
           [nil (util/make-exception e)])))))
 
-;;TODO: add validation, errors
-;;TODO: enforce that queue-name is a keyword (allow namespaces)
-;;TODO: enforce that group-name is a keyword (allow namespaces)
+(defn create-queue!
+  "Creates (or resets) a queue spec and, if it doesn't exist, optionally
+  creates the stream key and consumer group. Queue Specs are just Clojure maps
+  and can be reset w/o issue. However, this function will not attempt to reset
+  the stream key or consumer group. Returns vector of `[status ?err]`.
 
-(defn create-queue
-  "Creates a queue. Returns vector of `[ok? ?err]`.
+  _TIP_: To perform a full reset, you must call `potamic.queue/destroy-queue!`
+  then `potamic.queue/create-queue!`.
 
   | Option     | Description       | Default            |
   | ---------- | ----------------- | ------------------ |
   | `:group`   | Sets reader group | `QUEUE-NAME-group` |
   | `:init-id` | Initial ID        | `0`                |
+
+  `status` will be one of the following:
+
+  | Code                            | Description                            |
+  | ------------------------------- | -------------------------------------- |
+  | `:created-with-new-stream`      | Both the spec and stream are created   |
+  | `:created-with-existing-stream` | Spec is created, stream already exists |
+  | `:updated-with-new-stream`      | Spec is reset, stream is created       |
+  | `:updated-with-existing-stream` | Spec is reset, stream already exists   |
+  | `nil`                           | An error occurred                      |
 
   **Examples:**
 
@@ -165,17 +179,19 @@
   ;= {:spec {:uri \"redis://localhost:6379/0\"}
   ;=  :pool #taoensso.carmine.connections.ConnectionPool{..}}
 
-  (q/create-queue :my/queue conn)
-  ;= [true nil]
+  (q/create-queue! :my/queue conn)
+  ;= [:created-with-new-stream nil]
 
-  (q/create-queue :secondary/queue conn :group :secondary/group)
-  ;= [true nil]
+  (q/create-queue! :my/queue conn)
+  ;= [:updated-with-existing-stream nil]
 
-  (q/create-queue :third/queue conn :group :third/group :init-id 0)
-  ;= [true nil]
+  (q/create-queue! :secondary/queue conn :group :secondary/group)
+  ;= [:created-with-new-stream nil]
   ```
 
-  See also:"
+  See also:
+
+  - `potamic.queue/destroy-queue!`"
   [queue-name conn & opts]
   (let [opts* (apply hash-map opts)
         group-name (or (:group opts*) (-set-default-group-name queue-name))
@@ -188,26 +204,30 @@
       [nil (e/error {:potamic/err-type :potamic/args-err
                      :potamic/err-fatal? false
                      :potamic/err-msg (str "Invalid args provided to "
-                                           "potamic.queue/create-queue")
+                                           "potamic.queue/create-queue!")
                      :potamic/err-data {:args (util/remove-conn args)
                                         :err args-err}})]
-      (let [[_ ?err] (-initialize-stream conn queue-name group-name init-id)]
+      (let [[stream-status ?err] (-initialize-stream conn
+                                                     queue-name
+                                                     group-name
+                                                     init-id)]
         (if ?err
           [nil ?err]
-          (if (get-queue queue-name)
-            [nil
-             (e/error {:potamic/err-type :potamic/internal-err
-                       :potamic/err-fatal? false
-                       :potamic/err-msg (str "Queue already exists: "
-                                             queue-name)
-                       :potamic/err-data {:args (util/remove-conn args)}})]
-            (let [new-queue {:queue-name queue-name
-                             :queue-conn conn
-                             :group-name group-name
-                             :redis-queue-name (util/->str queue-name)
-                             :redis-group-name (util/->str group-name)}]
-              (swap! queues/queues_ assoc queue-name new-queue)
-              [true nil])))))))
+          (let [spec-exists? (boolean (get-queue queue-name))
+                spec {:queue-name queue-name
+                       :queue-conn conn
+                       :group-name group-name
+                       :redis-queue-name (util/->str queue-name)
+                       :redis-group-name (util/->str group-name)}]
+        (swap! queues/queues_ assoc queue-name spec)
+        [(if spec-exists?
+           (case stream-status
+             :group-created :updated-with-new-stream
+             :group-exists :updated-with-existing-stream)
+           (case stream-status
+             :group-created :created-with-new-stream
+             :group-exists :created-with-existing-stream ))
+         nil]))))))
 
 ;;TODO: add input validation for ID/MSG pairs and/or wildcar IDs for multi
 (defn put
@@ -230,7 +250,7 @@
   ;= {:spec {:uri \"redis://localhost:6379/0\"}
   ;=  :pool #taoensso.carmine.connections.ConnectionPool{..}}
 
-  (q/create-queue :my/queue conn)
+  (q/create-queue! :my/queue conn)
   ;= [true nil]
 
   ;; let Redis set the ID (RECOMMENDED)
@@ -262,7 +282,7 @@
   - `potamic.queue/read-next!`
   - `potamic.queue/read-pending-summary`
   - `potamic.queue/read-pending`
-  - `potamic.queue/create-queue`"
+  - `potamic.queue/create-queue!`"
   [queue-name & xs]
   (let [{qname :redis-queue-name conn :queue-conn} (get-queue queue-name)
         x (first xs)
@@ -338,7 +358,7 @@
   ;= {:spec {:uri \"redis://localhost:6379/0\"}
   ;=  :pool #taoensso.carmine.connections.ConnectionPool{..}}
 
-  (q/create-queue :my/queue conn)
+  (q/create-queue! :my/queue conn)
   ;= [true nil]
 
   (q/put :my/queue {:a 1} {:b 2} {:c 3})
@@ -416,7 +436,7 @@
   (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
-  (q/create-queue :my/queue conn)
+  (q/create-queue! :my/queue conn)
   ;= [true nil]
 
   (q/put :my/queue {:a 1} {:b 2} {:c 3})
@@ -492,7 +512,7 @@
   (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
-  (q/create-queue :my/queue conn :group :my/consumer)
+  (q/create-queue! :my/queue conn :group :my/consumer)
   ;= [true nil]
 
   (q/put :my/queue {:a 1} {:b 2} {:c 3})
@@ -571,7 +591,7 @@
   (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
-  (q/create-queue :my/queue conn)
+  (q/create-queue! :my/queue conn)
   ;= [true nil]
 
   (q/put :my/queue {:a 1} {:b 2} {:c 3})
@@ -652,7 +672,7 @@
   (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
-  (q/create-queue :my/queue conn)
+  (q/create-queue! :my/queue conn)
   ;= [true nil]
 
   (q/put :my/queue {:a 1} {:b 2} {:c 3})
@@ -748,7 +768,7 @@
   (def conn (db/make-conn :uri \"redis://localhost:6379/0\"))
   ;= {:uri \"redis://localhost:6379/0\", :pool {}}
 
-  (q/create-queue :my/queue conn)
+  (q/create-queue! :my/queue conn)
   ;= [true nil]
 
   (q/put :my/queue {:a 1} {:b 2} {:c 3})
@@ -782,16 +802,25 @@
         [nil (util/make-exception e)]))))
 
 (defn destroy-queue!
-  "Destroys a queue (stream) and the consumer group associated with it.
-  Returns vector of `[status ?err]`. If the queue does not exist, a vector of
-  `[:nonexistent nil]` will be returned. If the queue was destroyed, a vector
-  of `[:destroyed nil]` will be returned.
+  "Destroys a queue spec, the stream key and the consumer group associated with
+  it. Without the `:unsafe` option, an error will be returned if there are
+  pending messages. Returns vector of `[status ?err]`.
 
-  _WARNING_: Do not call this command unless you know it's safe to do so!
+  `status` will be one of the following:
+
+  | Code                                   | Description                      |
+  | -------------------------------------- | -------------------------------- |
+  | `:spec-destroyed_stream-destroyed`     | Spec destroyed, stream destroyed |
+  | `:spec-destroyed_stream-nonexistent`   | Spec destroyed, no stream found  |
+  | `:spec-nonexistent_stream-destroyed`   | No spec found, stream destroyed  |
+  | `:spec-nonexistent_stream-nonexistent` | No spec found, no stream found   |
+  | `nil`                                  | An error occurred                |
 
   | Option     | Description                      | Default |
   | ---------- | -------------------------------- | ------- |
   | `:unsafe`  | Skip Pending Entries List checks | `false` |
+
+  _WARNING_: Do not use `:unsafe` unless you know what you're doing!
 
   **Examples:**
 
@@ -803,8 +832,8 @@
   ;= {:spec {:uri \"redis://localhost:6379/0\"}
   ;=  :pool #taoensso.carmine.connections.ConnectionPool{..}}
 
-  (q/create-queue :my/queue conn)
-  ;= [true nil]
+  (q/create-queue! :my/queue conn)
+  ;= [:created-with-new-stream nil]
 
   (q/put :my/queue {:a 1} {:b 2} {:c 3})
   ;= [[\"1683933694431-0\" \"1683933694431-1\" \"1683933694431-2\"] nil]
@@ -832,18 +861,16 @@
 
   ;; force-destroy, ignoring if there are pending messages
   (q/destroy-queue! :my/queue conn :unsafe true)
-  ;= [true nil]
+  ;= [:spec-destroyed_stream-destroyed nil]
   ```
 
   See also:
 
-  - `potamic.queue/create-queue`"
+  - `potamic.queue/create-queue!`"
   [queue-name conn & opts]
   (let [opts* (apply hash-map opts)
         unsafe? (boolean (:unsafe opts*))
-        args {:conn conn
-              :queue-name queue-name
-              :unsafe unsafe?}]
+        args {:conn conn :queue-name queue-name :unsafe unsafe?}]
     (if-let [args-err (v/invalidate qv/Valid-Destroy-Queue-Args args)]
       [nil (e/error {:potamic/err-type :potamic/args-err
                      :potamic/err-fatal? false
@@ -851,41 +878,35 @@
                                            "potamic.queue/destroy-queue")
                      :potamic/err-data {:args (util/remove-conn args)
                                         :err args-err}})]
-      (let [{qname :redis-queue-name
-             group :redis-group-name
-             conn :queue-conn} (get-queue queue-name)]
-        (if-not (db/key-exists? qname conn)
-          [:nonexistent nil]
-          (let [[rgroups rconsumers] (wcar conn
-                                           :as-pipeline
-                                           (car/xinfo-groups qname)
-                                           (car/xinfo-consumers qname group))
-                groups (mapv #(into {} (for [[k v] (apply hash-map %)]
-                                         [(keyword k) v]))
-                             rgroups)
-                consumers (mapv #(into {} (for [[k v] (apply hash-map %)]
-                                            [(keyword k) v]))
-                                rconsumers)
+      (let [spec (get-queue queue-name)
+            qname-str (util/->str queue-name)
+            key-exists? (db/key-exists? qname-str conn)]
+        (if-not key-exists?
+          (do
+            (swap! queues/queues_ dissoc queue-name)
+            (if spec
+              [:spec-destroyed_stream-nonexistent nil]
+              [:spec-nonexistent_stream-nonexistent nil]))
+          (let [groups (mapv #(walk/keywordize-keys (apply hash-map %))
+                             (wcar conn (car/xinfo-groups qname-str)))
                 has-pending? (pos-int? (apply max (map :pending groups)))]
             (if (and (not unsafe?) has-pending?)
               [nil
                (e/error {:potamic/err-type :potamic/db-err
                          :potamic/err-fatal? false
-                         :potamic/err-msg (str "Cannot destroy " qname
+                         :potamic/err-msg (str "Cannot destroy " queue-name
                                                ", it has pending messages")
                          :potamic/err-data {:args (util/remove-conn args)
-                                            :groups groups
-                                            :consumers consumers}})]
+                                            :groups groups}})]
               (try
+                (swap! queues/queues_ dissoc queue-name)
                 (wcar conn
                       :as-pipeline
-                      (-> (mapv #(car/xgroup-delconsumer qname group %)
-                                consumers)
-                          (into (map #(car/xgroup-destroy qname %)
-                                     groups))
-                          (into (car/del qname))))
-                (swap! queues/queues_ dissoc qname)
-                [:destroyed nil]
+                      (-> (mapv #(car/xgroup-destroy qname-str %) groups)
+                          (into (car/del qname-str))))
+                (if spec
+                  [:spec-destroyed_stream-destroyed nil]
+                  [:spec-nonexistent_stream-destroyed nil])
                 (catch Exception e
                   [nil
                    (e/error {:potamic/err-type :potamic/db-err
@@ -894,4 +915,3 @@
                              :potamic/err-data
                              {:queue-name queue-name
                               :err (util/make-exception e)}})])))))))))
-

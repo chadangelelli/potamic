@@ -20,7 +20,7 @@
 (def Valid-Destroy-Queue-Args
   (malli/schema
     [:map {:closed true}
-     [:queue-name [:and valid-queue-value? queue-exists?]]
+     [:queue-name [:and valid-queue-value?]]
      [:conn dbv/Valid-Conn]
      [:unsafe {:optional true} boolean?]]))
 

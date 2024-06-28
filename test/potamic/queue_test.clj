@@ -21,44 +21,44 @@
 
 (defn prime-db
   [f]
+  (q/destroy-queue! test-queue conn :unsafe true)
   (wcar conn (car/flushall))
   (reset! queues/queues_ nil)
-  (q/create-queue test-queue conn)
+  (q/create-queue! test-queue conn)
   (f)
   (q/destroy-queue! test-queue conn :unsafe true)
   (wcar conn (car/flushall)))
 
 (use-fixtures :each prime-db)
 
-(deftest create-queue-test
-  (testing "potamic.queue/create-queue"
-    (let [[ok? ?err] (q/create-queue :secondary/queue conn)]
-      (is (= ok? true))
+(deftest create-queue!-test
+  (testing "potamic.queue/create-queue!"
+    (let [[status ?err] (q/create-queue! :secondary/queue conn)]
+      (is (= :created-with-new-stream status))
       (is (nil? ?err)))
-    )) ; end create-queue-test
+    )) ; end create-queue!-test
 
 (deftest get-queues-test
   (testing "potamic.queue/get-queues"
     ;; first queue created in fixture
-    (let [[ok? ?err] (q/create-queue :secondary/queue
+    (let [[status ?err] (q/create-queue! :secondary/queue
                                      conn
                                      :group :second/group)]
-      (is (= ok? true))
+      (is (= :created-with-new-stream status))
       (is (nil? ?err))
-      (is (=
-            {:my/test-queue {:group-name :my/test-queue-group,
-                             :queue-conn {:spec {:uri "redis://default:secret@localhost:6379/0"}},
-                             :queue-name :my/test-queue,
-                             :redis-group-name "my/test-queue-group",
-                             :redis-queue-name "my/test-queue"},
-             :secondary/queue {:group-name :second/group,
-                               :queue-conn {:spec {:uri "redis://default:secret@localhost:6379/0"}},
-                               :queue-name :secondary/queue,
-                               :redis-group-name "second/group",
-                               :redis-queue-name "secondary/queue"}}
-            (walk/postwalk (fn [x] (if (map? x) (dissoc x :pool) x))
-                           (q/get-queues))
-            ))
+      (is (= {:my/test-queue {:group-name :my/test-queue-group,
+                              :queue-conn {:spec {:uri "redis://default:secret@localhost:6379/0"}},
+                              :queue-name :my/test-queue,
+                              :redis-group-name "my/test-queue-group",
+                              :redis-queue-name "my/test-queue"},
+              :secondary/queue {:group-name :second/group,
+                                :queue-conn {:spec {:uri "redis://default:secret@localhost:6379/0"}},
+                                :queue-name :secondary/queue,
+                                :redis-group-name "second/group",
+                                :redis-queue-name "secondary/queue"}}
+             (walk/postwalk (fn [x] (if (map? x) (dissoc x :pool) x))
+                            (q/get-queues))
+             ))
       ))) ; end get-queues-test
 
 (deftest get-queue-test
@@ -260,8 +260,31 @@
       (is (re-find #"Cannot\s+destroy.+?,\s+it has pending messages"
                    (:potamic/err-msg safe-block-err)))
       (is (nil? ?destroy-err))
-      (is (= destroyed-status :destroyed))
+      (is (= :spec-destroyed_stream-destroyed destroyed-status))
       (is (nil? ?nonexistent-err))
-      (is (= nonexistent-status :nonexistent))
+      (is (= :spec-nonexistent_stream-nonexistent nonexistent-status))
       ))) ; end delete-queue-test
+
+(deftest create-destroy-cycle-test
+  (testing "creating > destroying > creating cycle"
+    (q/destroy-queue! test-queue conn :unsafe true)
+    (wcar conn (car/flushall))
+    (let [[create1-res ?create1-err] (q/create-queue! test-queue conn)
+          [destroy1-res ?destroy1-err] (q/destroy-queue! test-queue conn)
+          [create2-res ?create2-err] (q/create-queue! test-queue conn)
+          [destroy2-res ?destroy2-err] (q/destroy-queue! test-queue conn)
+          [create3-res ?create3-err] (q/create-queue! test-queue conn)
+          [create4-res ?create4-err] (q/create-queue! test-queue conn)]
+      (is (= :created-with-new-stream create1-res))
+      (is (nil? ?create1-err))
+      (is (= :spec-destroyed_stream-destroyed destroy1-res))
+      (is (nil? ?destroy1-err))
+      (is (= :created-with-new-stream create2-res))
+      (is (nil? ?create2-err))
+      (is (= :spec-destroyed_stream-destroyed destroy2-res))
+      (is (nil? ?destroy2-err))
+      (is (= :created-with-new-stream create3-res))
+      (is (nil? ?create3-err))
+      (is (= :updated-with-existing-stream create4-res))
+      (is (nil? ?create4-err)))))
 

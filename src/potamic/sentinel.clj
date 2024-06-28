@@ -867,10 +867,10 @@
   (start-sentinel! [this]
     (let [queue-exists? (p/get-queue queue-name)
           [_ ?create-err] (when-not queue-exists?
-                            (p/create-queue queue-name
-                                            queue-conn
-                                            :group queue-group
-                                            :init-id init-id)
+                            (p/create-queue! queue-name
+                                             queue-conn
+                                             :group queue-group
+                                             :init-id init-id)
 
                             (log/info STQ-LABEL "Created queue: " queue-name))]
       (if ?create-err
