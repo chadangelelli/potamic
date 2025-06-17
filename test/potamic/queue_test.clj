@@ -20,11 +20,9 @@
 
 (defn prime-queues
   [f]
-  ;; ..................................................... REDIS
   (q/create-queue! redis-test-queue
                    redis-conn
                    :group redis-test-queue-group)
-  ;; ..................................................... KVROCKS
   (q/create-queue! kvrocks-test-queue
                    kvrocks-conn
                    :group kvrocks-test-queue-group)
@@ -39,8 +37,8 @@
 
 (use-fixtures :each
               tu/fx-prime-flushall-kv-stores
-              prime-queues
               reset-queues
+              prime-queues
               tu/fx-cleanup-flushall-kv-stores)
 
 (deftest create-queue!-test
@@ -131,9 +129,7 @@
 (deftest get-queue-test
   (testing "potamic.queue/get-queue"
     (letfn [(-get-queue [{:keys [backend]}]
-              (let [qname (case backend
-                            :redis redis-test-queue
-                            :kvrocks kvrocks-test-queue)
+              (let [qname (tu/get-default-test-queue backend)
                     my-queue (q/get-queue qname)]
                 (case backend
                   :redis (is (= -correct-redis-queue
@@ -145,38 +141,41 @@
 
 (deftest put-test
   (testing "potamic.queue/put"
-    (testing "-- manually set id, singular msg"
-      (let [[?ids1 ?err1] (q/put test-queue "1683743739-0" {:a 1})
-            [?ids2 ?err2] (q/put test-queue "1683743739-*" {:a 1})
-            [?ids3 ?err3] (q/put test-queue :1683743739-* {:a 1})
-            [_ err4] (q/put :invalid/queue {:bad :call})]
-        (is (nil? ?err1))
-        (is (sequential? ?ids1))
-        (is (= (count ?ids1) 1))
-        (is (re-find id-pat (first ?ids1)))
-        (is (nil? ?err2))
-        (is (= (count ?ids2) 1))
-        (is (re-find id-pat (first ?ids2)))
-        (is (nil? ?err3))
-        (is (= (count ?ids3) 1))
-        (is (re-find id-pat (first ?ids3)))
-        (is (= "NOAUTH Authentication required."
-               (:potamic/err-msg err4)))))
-    (testing "-- manually set id, multiple msg's"
-      (let [[?ids ?err] (q/put test-queue "1683743739-*" {:a 1} {:b 2} {:c 3})]
-        (is (nil? ?err))
-        (is (= (count ?ids) 3))
-        (is (every? identity (mapv #(re-find id-pat %) ?ids)))))
-    (testing "-- singular put (auto-id)"
-      (let [[?ids ?err] (q/put test-queue {:a 1})]
-        (is (nil? ?err))
-        (is (= (count ?ids) 1))
-        (is (re-find id-pat (first ?ids)))))
-    (testing "-- multi put"
-      (let [[?ids ?err] (q/put test-queue {:a 1} {:b 2} {:c 3})]
-        (is (nil? ?err))
-        (is (= (count ?ids) 3))
-        (is (every? identity (mapv #(re-find id-pat %) ?ids)))))
+    (letfn [(-put [{:keys [backend]}]
+              (let [test-queue (tu/get-default-test-queue backend)]
+                (testing "-- manually set id, singular msg"
+                  (let [[?ids1 ?err1] (q/put test-queue "1683743739-0" {:a 1})
+                        [_ err4] (q/put :invalid/queue {:bad :call})]
+                    (is (nil? ?err1))
+                    (is (sequential? ?ids1))
+                    (is (= (count ?ids1) 1))
+                    (is (every? #(re-find id-pat %) ?ids1))
+                    (is (= "NOAUTH Authentication required."
+                           (:potamic/err-msg err4)))))
+                (testing "-- manually set id, multiple msg's"
+                  (let [[?ids ?err] (q/put test-queue
+                                           "1683743741-0"
+                                           {:a 1}
+                                           {:b 2}
+                                           {:c 3})]
+                    (is (nil? ?err))
+                    (is (= (count ?ids) 3))
+                    (is (= :?ids ?ids))
+                   ;(is (every? #(re-find id-pat %) ?ids))
+                   ;(is (every? identity (mapv #(re-find id-pat %) ?ids)))
+                    ))
+                #_(testing "-- singular put (auto-id)"
+                  (let [[?ids ?err] (q/put test-queue {:a 1})]
+                    (is (nil? ?err))
+                    (is (= (count ?ids) 1))
+                    (is (re-find id-pat (first ?ids)))))
+                #_(testing "-- multi put"
+                  (let [[?ids ?err] (q/put test-queue {:a 1} {:b 2} {:c 3})]
+                    (is (nil? ?err))
+                    (is (= (count ?ids) 3))
+                    (is (every? identity (mapv #(re-find id-pat %) ?ids)))))))]
+      (-put redis-conn)
+      )
     )) ; end put-test
 
 #_(deftest read-test

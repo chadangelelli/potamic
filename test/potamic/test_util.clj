@@ -36,3 +36,15 @@
   [f]
   (f)
   (flushall-kv-stores))
+
+(defn get-default-test-queue
+  [backend]
+  (case backend
+    :redis redis-test-queue
+    :kvrocks kvrocks-test-queue))
+
+(defn get-default-test-queue-group
+  [backend]
+  (case backend
+    :redis redis-test-queue-group
+    :kvrocks kvrocks-test-queue-group))
