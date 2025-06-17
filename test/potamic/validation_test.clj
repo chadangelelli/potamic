@@ -30,6 +30,6 @@
 
 (deftest valid-redis-uri?-test
   (testing "potamic.validation/valid-redis-uri?"
-    (doseq [uri db-test/valid-uris]
+    (doseq [uri db-test/valid-redis-uris]
       (is (v/valid-redis-uri? uri)))
     )) ; end valid-redis-uri?-test

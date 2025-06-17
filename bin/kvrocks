@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
+cd $script_dir
+cd ..
+
+docker container rm potamic-kvrocks > /dev/null 2>&1
+
+docker run \
+  --name potamic-kvrocks \
+  -p 6666:6666 \
+  apache/kvrocks:2.12.1 --bind 0.0.0.0 --requirepass secret
