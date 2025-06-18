@@ -1,9 +1,9 @@
 (ns potamic.db
   "Redis DB functionality."
-  (:require [potamic.errors :as e]
-            [potamic.validation :as v]
-            [potamic.db.validation :as dbv]
+  (:require [potamic.db.validation :as dbv]
+            [potamic.errors :as e]
             [potamic.util :as pu]
+            [potamic.validation :as v]
             [taoensso.carmine :as car :refer [wcar]])
   (:gen-class))
 
@@ -99,22 +99,31 @@
   [k conn]
   (> (wcar conn (car/exists (pu/->str k))) 0))
 
+(defn kvrocks-response
+  "Matches standard Carmine response signature. If a vector greater than 1 is
+  returned, treat it is a pipelined response, just like Carmine."
+  [resp]
+  (let [slice (subvec resp 1)]
+    (if (> (count slice) 1)
+      slice
+      (first slice))))
+
 (defmacro wcar*
-  "Wraps `taoensso.carmine/wcar` macro with a macro that will automatically
-  inject a `car/auth` call if the `backend` is `:kvrocks`. Otherwise, returns
-  Redis `wcar` call as-is.
+  "Rewrites calls to `taoensso.carmine/wcar` for different backends
+  (e.g. :redis vs :kvrocks).
 
   Examples:
 
-  Use same as standard `wcar` from Carmine."
-  [{:keys [backend] :as conn} & xs]
-  (case backend
-    :redis (if (= :as-pipeline (first xs))
-             (let [xs* (rest xs)]
-               `(wcar ~conn :as-pipeline ~@xs*))
-             `(wcar ~conn ~@xs))
-    :kvrocks (let [db (get-in conn [:spec :db])]
-               (if (= :as-pipeline (first xs))
-                 (let [xs* (rest xs)]
-                   `(wcar ~conn :as-pipeline (car/auth ~db) ~@xs*))
-                 `(wcar ~conn (car/auth ~db) ~@xs)))))
+  - Use same as `wcar`."
+  [conn & [x & xs :as args]]
+  (let [conn* (if (future? conn) @(resolve conn) conn)
+        backend (:backend conn*)
+        db (get-in conn* [:spec :db])
+        pipeline? (= x :as-pipeline)]
+    `(case ~backend
+       :redis (if ~pipeline?
+                (wcar ~conn :as-pipeline ~@xs)
+                (wcar ~conn ~@args))
+       :kvrocks (if ~pipeline?
+                  (kvrocks-response (wcar ~conn :as-pipeline (car/auth ~db) ~@xs))
+                  (kvrocks-response (wcar ~conn (car/auth ~db) ~@args))))))

@@ -8,7 +8,11 @@
 (def redis-test-queue-group :redis/test-queue-group)
 
 (def kvrocks-db-cnf {:host "127.0.0.1" :port 6666 :password "secret" :db 0})
-(def kvrocks-conn {:backend :kvrocks :pool {} :spec kvrocks-db-cnf})
+(def kvrocks-conn (db/make-conn :backend :kvrocks
+                                :host "127.0.0.1"
+                                :port 6666
+                                :password "secret"
+                                :db 0))
 (def kvrocks-test-queue :kvrocks/test-queue)
 (def kvrocks-test-queue-group :kvrocks/test-queue-group)
 
