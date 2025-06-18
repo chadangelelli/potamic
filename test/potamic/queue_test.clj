@@ -112,7 +112,9 @@
 
 (def ^:private -correct-redis-queue
   {:group-name :redis/test-queue-group,
-   :queue-conn {:backend :redis, :pool {}, :spec {:uri "redis://default:secret@localhost:6379/0"}},
+   :queue-conn {:backend :redis
+                :pool {}
+                :spec {:uri "redis://default:secret@localhost:6379/0"}}
    :queue-name :redis/test-queue,
    :redis-group-name "redis/test-queue-group",
    :redis-queue-name "redis/test-queue"})
@@ -136,8 +138,10 @@
                                 (assoc-in my-queue [:queue-conn :pool] {})))
                   :kvrocks (is (= -correct-kvrocks-queue
                                 (assoc-in my-queue [:queue-conn :pool] {}))))))]
-      (-get-queue redis-conn)
-      (-get-queue kvrocks-conn))))
+      (testing "| Redis"
+        (-get-queue redis-conn))
+      (testing "| Kvrocks"
+        (-get-queue kvrocks-conn)))))
 
 (deftest put-test
   (testing "potamic.queue/put"
@@ -152,105 +156,129 @@
                     (is (every? #(re-find id-pat %) ?ids1))
                     (is (= "NOAUTH Authentication required."
                            (:potamic/err-msg err4)))))
-                (testing "-- manually set id, multiple msg's"
-                  (let [[?ids ?err] (q/put test-queue
-                                           "1683743741-0"
-                                           {:a 1}
-                                           {:b 2}
-                                           {:c 3})]
+                (testing "-- multiple msg's"
+                  (let [[?ids ?err] (q/put test-queue {:a 1} {:b 2} {:c 3})]
                     (is (nil? ?err))
                     (is (= (count ?ids) 3))
-                    (is (= :?ids ?ids))
-                   ;(is (every? #(re-find id-pat %) ?ids))
-                   ;(is (every? identity (mapv #(re-find id-pat %) ?ids)))
-                    ))
-                #_(testing "-- singular put (auto-id)"
+                    (is (every? #(re-find id-pat %) ?ids))))
+                (testing "-- singular put (auto-id)"
                   (let [[?ids ?err] (q/put test-queue {:a 1})]
                     (is (nil? ?err))
                     (is (= (count ?ids) 1))
                     (is (re-find id-pat (first ?ids)))))
-                #_(testing "-- multi put"
+                (testing "-- multi put"
                   (let [[?ids ?err] (q/put test-queue {:a 1} {:b 2} {:c 3})]
                     (is (nil? ?err))
                     (is (= (count ?ids) 3))
                     (is (every? identity (mapv #(re-find id-pat %) ?ids)))))))]
-      (-put redis-conn)
-      )
-    )) ; end put-test
+      (testing "| Redis"
+        (-put redis-conn))
+      (testing "| Kvrocks"
+        (-put kvrocks-conn)))))
 
-#_(deftest read-test
+(deftest read-test
   (testing "potamic.queue/read"
-    (let [[_ _] (q/put test-queue {:a 1} {:b 2} {:c 3})
-          [read1-msgs ?read1-err] (q/read test-queue)
-          [read2-msgs ?read2-err] (q/read test-queue :start 0)
-          _ (async/go (async/<! (async/timeout 100)) (q/put test-queue {:d 4}))
-          [read3-msgs ?read3-err] (q/read test-queue
-                                          :count 1
-                                          :start (:id (last read1-msgs))
-                                          :block [120 :millis])]
-      (is (nil? ?read1-err))
-      (is (nil? ?read2-err))
-      (is (nil? ?read3-err))
-      (is (every? #(re-find id-pat %) (map :id read1-msgs)))
-      (is (every? #(re-find id-pat %) (map :id read2-msgs)))
-      (is (= read1-msgs read2-msgs))
-      (is (re-find id-pat (:id (first read3-msgs))))
-      (is (= 1 (count read3-msgs)))
-      (is (= (:msg (first read3-msgs)) {:d 4})))
-    )) ; end read-test
+    (letfn [(-read [{:keys [backend]}]
+              (let [test-queue (tu/get-default-test-queue backend)
+                    [_ _] (q/put test-queue {:a 1} {:b 2} {:c 3})
+                    [read1-msgs ?read1-err] (q/read test-queue)
+                    [read2-msgs ?read2-err] (q/read test-queue :start 0)
+                    _ (async/go (async/<! (async/timeout 100)) (q/put test-queue {:d 4}))
+                    [read3-msgs ?read3-err] (q/read test-queue
+                                                    :count 1
+                                                    :start (:id (last read1-msgs))
+                                                    :block [120 :millis])]
+                (is (nil? ?read1-err))
+                (is (nil? ?read2-err))
+                (is (nil? ?read3-err))
+                (is (every? #(re-find id-pat %) (map :id read1-msgs)))
+                (is (every? #(re-find id-pat %) (map :id read2-msgs)))
+                (is (= read1-msgs read2-msgs))
+                (is (re-find id-pat (:id (first read3-msgs))))
+                (is (= 1 (count read3-msgs)))
+                (is (= (:msg (first read3-msgs)) {:d 4}))))]
+      (testing "| Redis"
+        (-read redis-conn))
+      (testing "| Kvrocks"
+        (-read kvrocks-conn)))))
 
-#_(deftest read-next!-test
+(deftest read-next!-test
   (testing "potamic.queue/read-next!"
-    (let [[?ids ?err] (q/put test-queue {:a 1} {:b 2} {:c 3})]
-      (is (nil? ?err))
-      (is (= (count ?ids) 3))
-      (is (every? identity (mapv #(re-find id-pat %) ?ids))))
-    (testing "-- read-next! 1"
-      (let [[?msgs ?e] (q/read-next! 1 :from test-queue :as :my/consumer1)]
-        (is (nil? ?e))
-        (is (= 1 (count ?msgs)))
-        (is (re-find id-pat (:id (first ?msgs))))
-        (is (= (:msg (first ?msgs)) {:a 1}))))
-    (testing "-- read-next! :all"
-      (let [[?msgs ?e] (q/read-next! 2 :from test-queue :as :my/consumer1)]
-        (is (nil? ?e))
-        (is (= 2 (count ?msgs)))
-        (is (re-find id-pat (:id (first ?msgs))))
-        (is (re-find id-pat (:id (second ?msgs))))
-        (is (= (:msg (first ?msgs)) {:b 2}))
-        (is (= (:msg (second ?msgs)) {:c 3}))))
-    )) ; end read-next!-test
+    (letfn [(-read-next! [{:keys [backend]}]
+              (let [test-queue (tu/get-default-test-queue backend)
+                    [?ids ?err] (q/put test-queue {:a 1} {:b 2} {:c 3})]
+                (is (nil? ?err))
+                (is (= (count ?ids) 3))
+                (is (every? identity (mapv #(re-find id-pat %) ?ids)))
+                (testing "-- read-next! 1"
+                  (let [[?msgs ?e] (q/read-next! 1
+                                                 :from test-queue
+                                                 :as :my/consumer1)]
+                    (is (nil? ?e))
+                    (is (= 1 (count ?msgs)))
+                    (is (re-find id-pat (:id (first ?msgs))))
+                    (is (= (:msg (first ?msgs)) {:a 1}))))
+                (testing "-- read-next! :all"
+                  (let [[?msgs ?e] (q/read-next! 2
+                                                 :from test-queue
+                                                 :as :my/consumer1)]
+                    (is (nil? ?e))
+                    (is (= 2 (count ?msgs)))
+                    (is (re-find id-pat (:id (first ?msgs))))
+                    (is (re-find id-pat (:id (second ?msgs))))
+                    (is (= (:msg (first ?msgs)) {:b 2}))
+                    (is (= (:msg (second ?msgs)) {:c 3}))))))]
+      (testing "| Redis"
+        (-read-next! redis-conn))
+      (testing "| Kvrocks"
+        (-read-next! kvrocks-conn)))))
 
 #_(deftest read-pending-test
   (testing "potamic.queue/read-pending"
-    (let [[_ _] (q/put test-queue {:a 1} {:b 2} {:c 3})
-          [_ _] (q/read-next! 1 :from test-queue :as :consumer/one)
-          [read1 ?read1-err] (q/read-pending 10
-                                             :from test-queue
-                                             :for :consumer/one)
-          [read2 ?read2-err ] (q/read-pending 10
-                                              :from test-queue
-                                              :for :consumer/one
-                                              :start '-
-                                              :end '+)
-          [read3 ?read3-err] (q/read-pending 1
-                                             :from test-queue
-                                             :for :consumer/one
-                                             :start (:id (first read1))
-                                             :end  (:id (last read2)))]
-      (is (nil? ?read1-err))
-      (is (nil? ?read2-err))
-      (is (nil? ?read3-err))
-      (is (sequential? read1))
-      (is (sequential? read2))
-      (is (sequential? read3))
-      (is (= (count read1) 1))
-      (is (= (count read2) 1))
-      (is (= (count read3) 1))
-      (is (= (:id (first read1)) (:id (first read2))))
-      (is (= (:id (first read2)) (:id (first read3))))
-      (is (= (:id (first read1)) (:id (first read3))))
-      ))) ; end read-pending-test
+    (letfn [(-read-pending [{:keys [backend]}]
+              (let [test-queue (tu/get-default-test-queue backend)
+                    [_ _] (q/put test-queue {:a 1} {:b 2} {:c 3})
+                    [_ _] (q/read-next! 1 :from test-queue :as :consumer/one)
+                    [read1 ?read1-err] (q/read-pending 10
+                                                       :from test-queue
+                                                       :for :consumer/one)
+                    [read2 ?read2-err] (q/read-pending 10
+                                                       :from test-queue
+                                                       :for :consumer/one
+                                                       :start '-
+                                                       :end '+)
+                    [read3 ?read3-err] (q/read-pending
+                                         1
+                                         :from test-queue
+                                         :for :consumer/one
+                                        ;:start (:id (first read1))
+                                        ;:end  (:id (last read2))
+                                         )]
+                (is (= :read1 read1))
+                (is (= :read2 read2))
+                (is (= :read3 read3))
+                (is (nil? ?read1-err))
+                (is (nil? ?read2-err))
+                (is (nil? ?read3-err))
+                (is (sequential? read1))
+                (is (sequential? read2))
+                (is (sequential? read3))
+                (is (= 1 (count read1)))
+                (is (= 1 (count read2)))
+                (is (= 1 (count read3)))
+                (is (= :WTF? read3))
+               ;(is (= (:id (first read1)) (:id (first read2))))
+               ;(is (= (:id (first read2)) (:id (first read3))))
+               ;(is (= (:id (first read1)) (:id (first read3))))
+                ))]
+      (testing "| Redis"
+        )
+      (testing "| Kvrocks"
+        )
+      (testing "| Redis"
+        (-read-pending redis-conn))
+      (testing "| Kvrocks"
+        (-read-pending kvrocks-conn)))))
 
 #_(deftest read-pending-summary-test
   (testing "potamic.queue/read-pending-summary"

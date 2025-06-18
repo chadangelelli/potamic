@@ -4,13 +4,13 @@
    :author "Chad Angelelli"}
   (:refer-clojure :exclude [read])
   (:require [clojure.walk :as walk]
-            [potamic.db :as db]
+            [potamic.db :as db :refer [wcar*]]
             [potamic.errors :as e]
             [potamic.queue.queues :as queues]
             [potamic.queue.validation :as qv]
             [potamic.util :as util]
             [potamic.validation :as v]
-            [taoensso.carmine :as car :refer [wcar]])
+            [taoensso.carmine :as car])
   (:gen-class))
 
 (defn get-queue
@@ -131,12 +131,12 @@
   [conn queue-name group-name init-id]
   (try
     [(and (= "OK"
-             (wcar conn
-                   (car/xgroup-create
-                     (util/->str queue-name)
-                     (util/->str group-name)
-                     init-id
-                     :mkstream)))
+             (wcar* conn
+                    (car/xgroup-create
+                      (util/->str queue-name)
+                      (util/->str group-name)
+                      init-id
+                      :mkstream)))
           :group-created)
      nil]
     (catch Exception e
@@ -290,14 +290,13 @@
                     (keyword? x)
                     (symbol? x))
         id (if id-set? (name x) "*")
-        msgs (map util/encode-map-vals
-                  (if id-set? (rest xs) xs))]
+        msgs (map util/encode-map-vals (if id-set? (rest xs) xs))]
     (try
       (let [[?err :as r
-             ] (wcar conn
-                     :as-pipeline
-                     (mapv #(apply car/xadd qname id (reduce into [] %))
-                           msgs))]
+             ] (wcar* conn
+                      :as-pipeline
+                      (mapv #(apply car/xadd qname id (reduce into [] %))
+                            msgs))]
         (if (instance? clojure.lang.ExceptionInfo ?err)
           (throw ?err)
           [r nil]))
@@ -400,7 +399,7 @@
                   [(when cnt [:count cnt])
                    (when block [:block (util/time->milliseconds block)])
                    [:streams qname start]])
-            res (-> (wcar conn (apply car/xread cmd))
+            res (-> (wcar* conn (apply car/xread cmd))
                     first
                     second
                     -make-read-result)]
@@ -482,7 +481,7 @@
         (try
           (let [cmd (util/prep-cmd [[qname start end]
                                     (when cnt [:count cnt])])
-                res (-> (wcar conn (apply car/xrange cmd))
+                res (-> (wcar* conn (apply car/xrange cmd))
                         -make-read-result)]
             [(seq res) nil])
           (catch Exception e
@@ -546,7 +545,7 @@
                    (when block [:block (util/time->milliseconds block)])
                    (when (not= consume :all) [:count consume])
                    [:streams qname ">"]])
-            res (-> (wcar conn (apply car/xreadgroup cmd))
+            res (-> (wcar* conn (apply car/xreadgroup cmd))
                     first
                     second
                     -make-read-result)]
@@ -625,7 +624,7 @@
          conn :queue-conn} (get-queue queue-name)]
     (try
       (let [cmd (util/prep-cmd [[qname group]])
-            res (-> (wcar conn (apply car/xpending cmd))
+            res (-> (wcar* conn (apply car/xpending cmd))
                     -make-pending-summary)]
         [res nil])
       (catch Exception e
@@ -738,7 +737,7 @@
         (try
           (let [cmd (util/prep-cmd [[qname group start end count*]
                                     (when consumer consumer)])
-                res (-> (wcar conn (apply car/xpending cmd))
+                res (-> (wcar* conn (apply car/xpending cmd))
                         -make-pending-result)]
             [(lazy-seq res) nil])
           (catch Exception e
@@ -796,7 +795,7 @@
          conn :queue-conn} (get-queue queue-name)]
     (try
       (let [cmd (util/prep-cmd [(into [qname group] msg-ids)])
-            n-acked (wcar conn (apply car/xack cmd))]
+            n-acked (wcar* conn (apply car/xack cmd))]
         [n-acked nil])
       (catch Exception e
         [nil (util/make-exception e)]))))
@@ -888,7 +887,7 @@
               [:spec-destroyed_stream-nonexistent nil]
               [:spec-nonexistent_stream-nonexistent nil]))
           (let [groups (mapv #(walk/keywordize-keys (apply hash-map %))
-                             (wcar conn (car/xinfo-groups qname-str)))
+                             (wcar* conn (car/xinfo-groups qname-str)))
                 has-pending? (pos-int? (apply max (map :pending groups)))]
             (if (and (not unsafe?) has-pending?)
               [nil
@@ -900,10 +899,10 @@
                                             :groups groups}})]
               (try
                 (swap! queues/queues_ dissoc queue-name)
-                (wcar conn
-                      :as-pipeline
-                      (-> (mapv #(car/xgroup-destroy qname-str %) groups)
-                          (into (car/del qname-str))))
+                (wcar* conn
+                       :as-pipeline
+                       (-> (mapv #(car/xgroup-destroy qname-str %) groups)
+                           (into (car/del qname-str))))
                 (if spec
                   [:spec-destroyed_stream-destroyed nil]
                   [:spec-nonexistent_stream-destroyed nil])

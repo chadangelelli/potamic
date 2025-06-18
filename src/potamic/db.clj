@@ -98,3 +98,23 @@
   ```"
   [k conn]
   (> (wcar conn (car/exists (pu/->str k))) 0))
+
+(defmacro wcar*
+  "Wraps `taoensso.carmine/wcar` macro with a macro that will automatically
+  inject a `car/auth` call if the `backend` is `:kvrocks`. Otherwise, returns
+  Redis `wcar` call as-is.
+
+  Examples:
+
+  Use same as standard `wcar` from Carmine."
+  [{:keys [backend] :as conn} & xs]
+  (case backend
+    :redis (if (= :as-pipeline (first xs))
+             (let [xs* (rest xs)]
+               `(wcar ~conn :as-pipeline ~@xs*))
+             `(wcar ~conn ~@xs))
+    :kvrocks (let [db (get-in conn [:spec :db])]
+               (if (= :as-pipeline (first xs))
+                 (let [xs* (rest xs)]
+                   `(wcar ~conn :as-pipeline (car/auth ~db) ~@xs*))
+                 `(wcar ~conn (car/auth ~db) ~@xs)))))
