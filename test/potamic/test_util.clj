@@ -1,5 +1,5 @@
 (ns potamic.test-util
-  (:require [potamic.db :as db]
+  (:require [potamic.db :as db :refer [wcar*]]
             [taoensso.carmine :as car :refer [wcar]]))
 
 (def redis-db-uri "redis://default:secret@localhost:6379/0")
@@ -18,13 +18,17 @@
 
 (defn flushall-redis
   []
-  (wcar redis-conn (car/flushall)))
+  (wcar* redis-conn (car/flushall)))
 
 (defn flushall-kvrocks
+  "Note: Kvrocks requires admin password (requirepass) to call FLUSHALL, as
+  it uses the AUTH cmd to switch between namespaces and we need to be in the
+  main namespace."
   []
-  (wcar kvrocks-conn
-        (car/auth (:password kvrocks-db-cnf))
-        (car/flushall)))
+  (let [admin-password (:password kvrocks-db-cnf)]
+    (wcar kvrocks-conn
+          (car/auth admin-password)
+          (car/flushall))))
 
 (defn flushall-kv-stores
   []

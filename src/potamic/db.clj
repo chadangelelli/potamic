@@ -99,14 +99,16 @@
   [k conn]
   (> (wcar conn (car/exists (pu/->str k))) 0))
 
-(defn kvrocks-response
-  "Matches standard Carmine response signature. If a vector greater than 1 is
-  returned, treat it is a pipelined response, just like Carmine."
-  [resp]
+(defn kvres
+  "(Kvrocks only) Matches standard Carmine response signature. If a vector
+  greater than 1 is returned, treat it is a pipelined response, like Carmine."
+  [resp as-pipeline?]
   (let [slice (subvec resp 1)]
-    (if (> (count slice) 1)
+    (if as-pipeline?
       slice
-      (first slice))))
+      (if (> (count slice) 1)
+        slice
+        (first slice)))))
 
 (defmacro wcar*
   "Rewrites calls to `taoensso.carmine/wcar` for different backends
@@ -116,14 +118,15 @@
 
   - Use same as `wcar`."
   [conn & [x & xs :as args]]
-  (let [conn* (if (future? conn) @(resolve conn) conn)
-        backend (:backend conn*)
-        db (get-in conn* [:spec :db])
-        pipeline? (= x :as-pipeline)]
-    `(case ~backend
-       :redis (if ~pipeline?
-                (wcar ~conn :as-pipeline ~@xs)
-                (wcar ~conn ~@args))
-       :kvrocks (if ~pipeline?
-                  (kvrocks-response (wcar ~conn :as-pipeline (car/auth ~db) ~@xs))
-                  (kvrocks-response (wcar ~conn (car/auth ~db) ~@args))))))
+  `(let [pipeline?# (= :as-pipeline (quote ~x))
+         conn# ~conn]
+    (case (:backend conn#)
+      :redis (if pipeline?#
+               (wcar ~conn :as-pipeline ~@xs)
+               (wcar ~conn ~@args))
+      :kvrocks (let [db# (get-in conn# [:spec :db])]
+                 (if pipeline?#
+                   (kvres (wcar ~conn :as-pipeline (car/auth db#) ~@xs)
+                          pipeline?#)
+                   (kvres (wcar ~conn (car/auth db#) ~@args)
+                          pipeline?#))))))

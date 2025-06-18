@@ -130,20 +130,20 @@
 (defn- -initialize-stream
   [conn queue-name group-name init-id]
   (try
-    [(and (= "OK"
-             (wcar* conn
-                    (car/xgroup-create
-                      (util/->str queue-name)
-                      (util/->str group-name)
-                      init-id
-                      :mkstream)))
-          :group-created)
-     nil]
-    (catch Exception e
-      (let [msg (.getMessage e)]
-        (if (re-find #"Consumer\s+Group.+?already\s+exists" msg)
-          [:group-exists nil]
-          [nil (util/make-exception e)])))))
+   (let [resp (wcar* conn
+                     (car/xgroup-create
+                       (util/->str queue-name)
+                       (util/->str group-name)
+                       init-id
+                       :mkstream))]
+     (if (= "OK" resp)
+         [:group-created nil]
+         (throw (Exception. (str "Cannot initialize stream: " resp)))))
+   (catch Exception e
+     (let [msg (.getMessage e)]
+          (if (re-find #"Consumer\s+Group.+?already\s+exists" msg)
+            [:group-exists nil]
+            [nil (util/make-exception e)])))))
 
 (defn create-queue!
   "Creates (or resets) a queue spec and, if it doesn't exist, optionally
@@ -213,12 +213,13 @@
                                                      init-id)]
         (if ?err
           [nil ?err]
-          (let [spec-exists? (boolean (get-queue queue-name))
+          (let [
+                spec-exists? (boolean (get-queue queue-name))
                 spec {:queue-name queue-name
-                       :queue-conn conn
-                       :group-name group-name
-                       :redis-queue-name (util/->str queue-name)
-                       :redis-group-name (util/->str group-name)}]
+                      :queue-conn conn
+                      :group-name group-name
+                      :redis-queue-name (util/->str queue-name)
+                      :redis-group-name (util/->str group-name)}]
         (swap! queues/queues_ assoc queue-name spec)
         [(if spec-exists?
            (case stream-status
@@ -292,11 +293,13 @@
         id (if id-set? (name x) "*")
         msgs (map util/encode-map-vals (if id-set? (rest xs) xs))]
     (try
-      (let [[?err :as r
-             ] (wcar* conn
-                      :as-pipeline
-                      (mapv #(apply car/xadd qname id (reduce into [] %))
-                            msgs))]
+        (let [[?err :as r] (wcar* conn
+                                  :as-pipeline
+                                  (mapv #(apply car/xadd
+                                                qname
+                                                id
+                                                (reduce into [] %))
+                                        msgs))]
         (if (instance? clojure.lang.ExceptionInfo ?err)
           (throw ?err)
           [r nil]))
@@ -399,10 +402,13 @@
                   [(when cnt [:count cnt])
                    (when block [:block (util/time->milliseconds block)])
                    [:streams qname start]])
+            _ (println "%%%%%%%%%%%%%%%%%%%" (:backend conn))
+            _ (println "----> cmd:" cmd)
             res (-> (wcar* conn (apply car/xread cmd))
                     first
                     second
                     -make-read-result)]
+        (println "----> res:" res)
         [(seq res) nil])
       (catch Exception e
         [nil (util/make-exception e)]))))
