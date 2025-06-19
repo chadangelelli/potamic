@@ -19,28 +19,7 @@
 
 (def id-pat #"\d+-\d+")
 
-(defn prime-queues
-  [f]
-  (q/create-queue! redis-test-queue
-                   redis-conn
-                   :group redis-test-queue-group)
-  (q/create-queue! kvrocks-test-queue
-                   kvrocks-conn
-                   :group kvrocks-test-queue-group)
-  (f))
-
-(defn reset-queues
-  [f]
-  (f)
-  (q/destroy-queue! redis-test-queue redis-conn :unsafe true)
-  (q/destroy-queue! kvrocks-test-queue kvrocks-conn :unsafe true)
-  (reset! queues/queues_ nil))
-
-(use-fixtures :each
-              tu/fx-prime-flushall-kv-stores
-              reset-queues
-              prime-queues
-              tu/fx-cleanup-flushall-kv-stores)
+(use-fixtures :each tu/fx-prime-queues)
 
 (deftest create-queue!-test
   (testing "potamic.queue/create-queue!"

@@ -402,13 +402,10 @@
                   [(when cnt [:count cnt])
                    (when block [:block (util/time->milliseconds block)])
                    [:streams qname start]])
-            _ (println "%%%%%%%%%%%%%%%%%%%" (:backend conn))
-            _ (println "----> cmd:" cmd)
             res (-> (wcar* conn (apply car/xread cmd))
                     first
                     second
                     -make-read-result)]
-        (println "----> res:" res)
         [(seq res) nil])
       (catch Exception e
         [nil (util/make-exception e)]))))

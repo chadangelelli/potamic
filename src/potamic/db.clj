@@ -97,7 +97,17 @@
   ;= true
   ```"
   [k conn]
-  (> (wcar conn (car/exists (pu/->str k))) 0))
+  (try
+    (let [r (wcar conn (car/exists (pu/->str k)))
+          r (if (string? r) (Integer/parseInt r) r)]
+      (> r 0))
+    (catch Exception e
+      (let [err (e/error {:potamic/err-type :potamic/internal-err
+                          :potamic/err-fatal? false
+                          :potamic/err-msg (.getMessage e)
+                          :potamic/err-data {:args {:k k :conn (dissoc conn :pool)}
+                                             :err (Throwable->map e)}})]
+        (e/throw-potamic-error err)))))
 
 (defn kvres
   "(Kvrocks only) Matches standard Carmine response signature. If a vector
@@ -106,9 +116,9 @@
   (let [slice (subvec resp 1)]
     (if as-pipeline?
       slice
-      (if (> (count slice) 1)
-        slice
-        (first slice)))))
+      (if (= (count slice) 1)
+        (first slice)
+        slice))))
 
 (defmacro wcar*
   "Rewrites calls to `taoensso.carmine/wcar` for different backends
