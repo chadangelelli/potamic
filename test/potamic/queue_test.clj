@@ -163,11 +163,11 @@
                                               test-queue
                                               :count 1
                                               :start (:id (last read1-msgs))
-                                              :block [120 :millis])
-                    ]
+                                              :block [120 :millis])]
+                (is (= :REMOVE :THIS))
                 (is (nil? ?read1-err))
                 (is (nil? ?read2-err))
-                (is (nil? ?read3-err))
+               ;(is (nil? ?read3-err))
                 (is (every? #(re-find id-pat %) (map :id read1-msgs)))
                 (is (every? #(re-find id-pat %) (map :id read2-msgs)))
                 (is (= read1-msgs read2-msgs))

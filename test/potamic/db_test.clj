@@ -72,5 +72,4 @@
              (-hmset kvrocks-conn)))
       (is (= ["OK" "1"]
              (-set-z-pipeline redis-conn)
-             (-set-z-pipeline kvrocks-conn)))
-      )))
+             (-set-z-pipeline kvrocks-conn))))))

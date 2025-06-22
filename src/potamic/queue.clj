@@ -200,35 +200,36 @@
               :queue-name queue-name
               :init-id init-id
               :group group-name}]
-    (if-let [args-err (v/invalidate qv/Valid-Create-Queue-Args args)]
-      [nil (e/error {:potamic/err-type :potamic/args-err
-                     :potamic/err-fatal? false
-                     :potamic/err-msg (str "Invalid args provided to "
-                                           "potamic.queue/create-queue!")
-                     :potamic/err-data {:args (util/remove-conn args)
-                                        :err args-err}})]
-      (let [[stream-status ?err] (-initialize-stream conn
-                                                     queue-name
-                                                     group-name
-                                                     init-id)]
-        (if ?err
-          [nil ?err]
-          (let [
-                spec-exists? (boolean (get-queue queue-name))
-                spec {:queue-name queue-name
-                      :queue-conn conn
-                      :group-name group-name
-                      :redis-queue-name (util/->str queue-name)
-                      :redis-group-name (util/->str group-name)}]
-        (swap! queues/queues_ assoc queue-name spec)
-        [(if spec-exists?
-           (case stream-status
-             :group-created :updated-with-new-stream
-             :group-exists :updated-with-existing-stream)
-           (case stream-status
-             :group-created :created-with-new-stream
-             :group-exists :created-with-existing-stream ))
-         nil]))))))
+  (if-let [args-err (v/invalidate qv/Valid-Create-Queue-Args args)]
+        [nil (e/error {:potamic/err-type :potamic/args-err
+                       :potamic/err-fatal? false
+                       :potamic/err-fn 'potamic.queue/create-queue!
+                       :potamic/err-msg (str "Invalid args provided to "
+                                             "potamic.queue/create-queue!")
+                       :potamic/err-data {:args (util/remove-conn args)
+                                          :err args-err}})]
+        (let [[stream-status ?err] (-initialize-stream conn
+                                                       queue-name
+                                                       group-name
+                                                       init-id)]
+              (if ?err
+                [nil ?err]
+                (let [
+                      spec-exists? (boolean (get-queue queue-name))
+                      spec {:queue-name queue-name
+                            :queue-conn conn
+                            :group-name group-name
+                            :redis-queue-name (util/->str queue-name)
+                            :redis-group-name (util/->str group-name)}]
+                  (swap! queues/queues_ assoc queue-name spec)
+                  [(if spec-exists?
+                     (case stream-status
+                       :group-created :updated-with-new-stream
+                       :group-exists :updated-with-existing-stream)
+                     (case stream-status
+                       :group-created :created-with-new-stream
+                       :group-exists :created-with-existing-stream ))
+                   nil]))))))
 
 ;;TODO: add input validation for ID/MSG pairs and/or wildcar IDs for multi
 (defn put
@@ -306,6 +307,7 @@
       (catch Exception e
         (let [err {:potamic/err-type :potamic/internal-err
                    :potamic/err-fatal? false
+                   :potamic/err-fn 'potamic.queue/put
                    :potamic/err-msg (.getMessage e)
                    :potamic/err-data {:queue-name queue-name
                                       :err (util/make-exception e)}}]
@@ -402,10 +404,23 @@
                   [(when cnt [:count cnt])
                    (when block [:block (util/time->milliseconds block)])
                    [:streams qname start]])
-            res (-> (wcar* conn (apply car/xread cmd))
-                    first
-                    second
-                    -make-read-result)]
+            _ (println "\n--> cmd:" cmd)
+            _ (println "--> res (raw):" (wcar* conn (apply car/xread cmd)))
+            a0 (wcar* conn (apply car/xread cmd))
+            _ (println "\n\t|> a0:" a0)
+            a1 (first a0)
+            _ (println "\n\t|> a1:" a1)
+            a2 (second a1)
+            _ (println "\n\t|> a2:" a2)
+            a3 (-make-read-result a2)
+            _ (println "\n\t|> a3:" a3)
+            res a3
+
+           ;res (-> (wcar* conn (apply car/xread cmd))
+           ;        first
+           ;        second
+           ;        -make-read-result)
+            ]
         [(seq res) nil])
       (catch Exception e
         [nil (util/make-exception e)]))))
@@ -477,6 +492,7 @@
       [nil
        (e/error {:potamic/err-type :potamic/args-err
                  :potamic/err-fatal? false
+                 :potamic/err-fn 'potamic.queue/read-range
                  :potamic/err-msg (str "Invalid args provided to "
                                        "potamic.queue/read-range")
                  :potamic/err-data {:args args :err args-err}})]
@@ -803,6 +819,64 @@
       (catch Exception e
         [nil (util/make-exception e)]))))
 
+(defn- -invalidate-destroy-queue-args
+  "Returns nil on success or Potamic error on fail."
+  [args]
+  (when-let [args-err (v/invalidate qv/Valid-Destroy-Queue-Args args)]
+    [nil
+     (e/error {:potamic/err-type :potamic/args-err
+               :potamic/err-fatal? false
+               :potamic/err-msg (str "Invalid args provided to "
+                                     "potamic.queue/destroy-queue")
+               :potamic/err-data {:args (util/remove-conn args)
+                                  :err args-err}})]))
+
+(defn- -destroy-unused-or-dangling-queue!
+  [{:keys [queue-name]}]
+  (swap! queues/queues_ dissoc queue-name)
+  (if (contains? @queues/queues_ queue-name)
+    [:spec-destroyed_stream-nonexistent nil]
+    [:spec-nonexistent_stream-nonexistent nil]))
+
+(defn- -optionally-block-destroy-on-pending-messages
+  [{:keys [queue-name unsafe]:as args} groups]
+  (let [has-pending? (pos-int? (apply max (map :pending groups)))]
+    (when (and (not unsafe) has-pending?)
+      [nil
+       (e/error {:potamic/err-type :potamic/db-err
+                 :potamic/err-fatal? false
+                 :potamic/err-msg (str "Cannot destroy " queue-name
+                                       ", it has pending messages")
+                 :potamic/err-data {:args (util/remove-conn args)
+                                    :groups groups}})])))
+
+(defn- -make-destroy-exception-error
+  [{:keys [queue-name] :as args} e]
+  [nil
+   (e/error {:potamic/err-type :potamic/db-err
+             :potamic/err-fatal? false
+             :potamic/err-msg (.getMessage e)
+             :potamic/err-data {:queue-name queue-name
+                                :args (util/remove-conn args)
+                                :err (util/make-exception e)}})])
+
+(defn- -destroy-active-queue!
+  [{:keys [conn queue-name] :as args}]
+  (let [qname-str (util/->str queue-name)
+        groups (mapv #(walk/keywordize-keys (apply hash-map %))
+                     (wcar* conn (car/xinfo-groups qname-str)))]
+    (or (-optionally-block-destroy-on-pending-messages args groups)
+        (try
+          (wcar* conn
+                 :as-pipeline
+                 (-> (mapv #(car/xgroup-destroy qname-str (:name %)) groups)
+                     (into (car/del qname-str))))
+          (if (contains? @queues/queues_ queue-name)
+            [:spec-destroyed_stream-destroyed nil]
+            [:spec-nonexistent_stream-destroyed nil])
+          (catch Exception e
+            (-make-destroy-exception-error args e))))))
+
 (defn destroy-queue!
   "Destroys a queue spec, the stream key and the consumer group associated with
   it. Without the `:unsafe` option, an error will be returned if there are
@@ -873,47 +947,8 @@
   (let [opts* (apply hash-map opts)
         unsafe? (boolean (:unsafe opts*))
         args {:conn conn :queue-name queue-name :unsafe unsafe?}]
-    (if-let [args-err (v/invalidate qv/Valid-Destroy-Queue-Args args)]
-      [nil (e/error {:potamic/err-type :potamic/args-err
-                     :potamic/err-fatal? false
-                     :potamic/err-msg (str "Invalid args provided to "
-                                           "potamic.queue/destroy-queue")
-                     :potamic/err-data {:args (util/remove-conn args)
-                                        :err args-err}})]
-      (let [spec (get-queue queue-name)
-            qname-str (util/->str queue-name)
-            key-exists? (db/key-exists? qname-str conn)]
-        (if-not key-exists?
-          (do
-            (swap! queues/queues_ dissoc queue-name)
-            (if spec
-              [:spec-destroyed_stream-nonexistent nil]
-              [:spec-nonexistent_stream-nonexistent nil]))
-          (let [groups (mapv #(walk/keywordize-keys (apply hash-map %))
-                             (wcar* conn (car/xinfo-groups qname-str)))
-                has-pending? (pos-int? (apply max (map :pending groups)))]
-            (if (and (not unsafe?) has-pending?)
-              [nil
-               (e/error {:potamic/err-type :potamic/db-err
-                         :potamic/err-fatal? false
-                         :potamic/err-msg (str "Cannot destroy " queue-name
-                                               ", it has pending messages")
-                         :potamic/err-data {:args (util/remove-conn args)
-                                            :groups groups}})]
-              (try
-                (swap! queues/queues_ dissoc queue-name)
-                (wcar* conn
-                       :as-pipeline
-                       (-> (mapv #(car/xgroup-destroy qname-str %) groups)
-                           (into (car/del qname-str))))
-                (if spec
-                  [:spec-destroyed_stream-destroyed nil]
-                  [:spec-nonexistent_stream-destroyed nil])
-                (catch Exception e
-                  [nil
-                   (e/error {:potamic/err-type :potamic/db-err
-                             :potamic/err-fatal? false
-                             :potamic/err-msg (.getMessage e)
-                             :potamic/err-data
-                             {:queue-name queue-name
-                              :err (util/make-exception e)}})])))))))))
+    (or (-invalidate-destroy-queue-args args)
+        (let [qname-str (util/->str queue-name)]
+          (if (db/key-exists? qname-str conn)
+            (-destroy-active-queue! args)
+            (-destroy-unused-or-dangling-queue! args))))))

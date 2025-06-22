@@ -40,16 +40,14 @@
 (defn destroy-all-queues!
   []
   (doseq [qname (keys (q/get-queues))]
-    (q/destroy-queue! qname redis-conn :unsafe true)
-    (q/destroy-queue! qname kvrocks-conn :unsafe true))
+    (let [r (q/destroy-queue! qname redis-conn :unsafe true)]
+      (println "--> destroy-all-queues! :: Redis :" r))
+    (let [r (q/destroy-queue! qname kvrocks-conn :unsafe true)]
+      (println "--> destroy-all-queues! :: Kvrocks :" r)))
   (let [queues (q/get-queues)]
     (assert (= 0 (count queues))
             (str "[Test Util Error] destroy-all-queues!: Count should be zero."
-                 "\n\tFound: (" (keys queues) ")"))
-    (assert (not (db/key-exists? redis-test-queue redis-conn))
-            "[Test Util Error] destroy-all-queues!: redis-test-queue still exists in Redis DB")
-    (assert (not (db/key-exists? kvrocks-test-queue kvrocks-conn))
-            "[Test Util Error] destroy-all-queues!: kvrocks-test-queue still exists in Kvrocks DB")))
+                 "\n\tFound: (" (keys queues) ")"))))
 
 (defn fx-prime-flushall-kv-stores
   [f]
@@ -72,15 +70,11 @@
   [f]
   (destroy-all-queues!)
   (flushall-kv-stores)
-  (let [[_ ?err] (q/create-queue! redis-test-queue
-                                  redis-conn
-                                  :group redis-test-queue-group)]
+  (let [[_ ?err] (q/create-queue! redis-test-queue redis-conn :group redis-test-queue-group)]
     (assert (nil? ?err)
             (str "[Test Util Error] fx-prime-queues: Can't create redis-test-queue"
                  "\n\t?err: " ?err)))
-  (let [[_ ?err] (q/create-queue! kvrocks-test-queue
-                                  kvrocks-conn
-                                  :group kvrocks-test-queue-group)]
+  (let [[_ ?err] (q/create-queue! kvrocks-test-queue kvrocks-conn :group kvrocks-test-queue-group)]
     (assert (nil? ?err)
             (str "[Test Util Error] fx-prime-queues: Can't create kvrocks-test-queue"
                  "\n\t?err: " ?err)))

@@ -64,8 +64,7 @@
   (Integer/parseInt s))
 
 (defn prep-cmd
-  "Returns concatenated vector of arguments (without using concat) to be
- applied to a Carmine/Redis command.
+  "Returns concatenated vector of arguments to be applied to a Carmine command.
 
   **Examples:**
 
