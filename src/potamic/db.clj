@@ -13,17 +13,21 @@
 
   1. Call `(subvec resp 1)` to remove the injected AUTH command response.
   2. If `:as-pipeline` is true, do not further modify response.
-  3. If length of subvec is 1, return the scalar value (to mimic Carmine).
+  3. If length of subvec is 1, return the first value (to mimic Carmine).
   4. Otherwise, return vector, as-is."
-  [as-pipeline? resp]
-  (println "--> potamic.db[kvrocks-response]> 0. resp:" resp)
-  (let [slice (subvec resp 1)]
-    (println "--> potamic.db[kvrocks-response]> 0. slice:" slice)
-    (if as-pipeline?
-      slice
-      (if (= (count slice) 1)
-        (first slice)
-        slice))))
+  [resp pipeline?]
+  (println "--> potamic.db/kvrocks-response > 0. resp:" resp)
+  (let [slice (subvec resp 1)
+        ret (if pipeline?
+              slice
+              (if (= 1 (count slice))
+                (first slice)
+                slice))]
+    (println "--> potamic.db/kvrocks-response > 1. slice:" slice)
+    (println "--> potamic.db/kvrocks-response > 2. pipeline?:" pipeline?)
+    (println "--> potamic.db/kvrocks-response > 2. ret:" ret)
+    ret
+    ))
 
 (defmacro wcar*
   "Rewrites calls to `taoensso.carmine/wcar` for different backends
@@ -33,19 +37,19 @@
 
   - Use same as `wcar`."
   [conn & [x & xs :as args]]
-  `(let [pipeline?# (= :as-pipeline (quote ~x))
-         conn# ~conn]
+  `(let [conn# ~conn]
      (case (:backend conn#)
-       :redis (if pipeline?#
-                (wcar ~conn :as-pipeline ~@xs)
-                (wcar ~conn ~@args))
+       :redis (wcar ~conn ~@args)
        :kvrocks
-       (let [db# (get-in conn# [:spec :db])]
+       (let [db# (get-in conn# [:spec :db])
+             pipeline?# (= :as-pipeline (quote ~x))]
          (if pipeline?#
-           (kvrocks-response pipeline?#
-                             (wcar ~conn :as-pipeline (car/auth db#) ~@xs))
-           (kvrocks-response pipeline?#
-                             (wcar ~conn (car/auth db#) ~@args)))))))
+           (kvrocks-response
+             (wcar ~conn :as-pipeline (vec (cons (car/auth db#) ~@xs)))
+             pipeline?#)
+           (kvrocks-response
+             (wcar ~conn (vec (cons (car/auth db#) ~@args)))
+             pipeline?#))))))
 
 (def kvrocks-namespaces_
   "Set of Kvrocks namespaces in use. Simple schema of `int:int` (e.g. `0:0`)
@@ -152,9 +156,25 @@
   ;= true
   ```"
   [k conn]
+  (println "==================================================")
+  (println "--> potamic.db/key-exists? > -1. conn:" (type conn) (dissoc conn :pool))
+  (println "--> potamic.db/key-exists? > 0. k:" (type k) k)
+  (let [k-str (pu/->str k)
+        cmd (list 'wcar* 'conn (list 'car/exists :as-pipeline (pu/->str k)))
+        ? (wcar* conn (car/exists :as-pipeline (pu/->str k)))
+        ]
+    (println "--> potamic.db/key-exists? > 0b. k-str:" (type k-str) k-str)
+    (println "--> potamic.db/key-exists? > 1. cmd:" (type cmd) cmd)
+    (println "--> potamic.db/?ey-exists? > 2. ?:" (type ?) ?)
+    (println "==================================================")
+    )
   (try
-    (let [r (wcar* conn (car/exists (pu/->str k)))
-          r (if (string? r) (Integer/parseInt r) r)]
+    (let [r (wcar* conn (car/exists :as-pipeline (pu/->str k)))
+         ;; (wcar* conn :as-pipeline (car/exists (pu/->str k)))
+          _ (println "--> potamic.db/key-exists? > 3. r:" (type r) r)
+          r (if (string? r) (Integer/parseInt r) r)
+          _ (println "--> potamic.db/key-exists? > 4. r:" (type r) r)
+          ]
       (> r 0))
     (catch Exception e
       (let [err (e/error {:potamic/err-type :potamic/internal-err

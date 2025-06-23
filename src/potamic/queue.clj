@@ -404,23 +404,10 @@
                   [(when cnt [:count cnt])
                    (when block [:block (util/time->milliseconds block)])
                    [:streams qname start]])
-            _ (println "\n--> cmd:" cmd)
-            _ (println "--> res (raw):" (wcar* conn (apply car/xread cmd)))
-            a0 (wcar* conn (apply car/xread cmd))
-            _ (println "\n\t|> a0:" a0)
-            a1 (first a0)
-            _ (println "\n\t|> a1:" a1)
-            a2 (second a1)
-            _ (println "\n\t|> a2:" a2)
-            a3 (-make-read-result a2)
-            _ (println "\n\t|> a3:" a3)
-            res a3
-
-           ;res (-> (wcar* conn (apply car/xread cmd))
-           ;        first
-           ;        second
-           ;        -make-read-result)
-            ]
+            res (-> (wcar* conn (apply car/xread cmd))
+                    first
+                    second
+                    -make-read-result)]
         [(seq res) nil])
       (catch Exception e
         [nil (util/make-exception e)]))))
