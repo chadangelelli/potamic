@@ -4,11 +4,11 @@ script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 cd $script_dir
 cd ..
 
-docker container rm potamic > /dev/null 2>&1
+docker container rm potamic-redis > /dev/null 2>&1
 
 docker run \
-    --name potamic \
+    --name potamic-redis \
     -p 6379:6379 \
     -v "/$(pwd)/dev-resources/redis-config:/usr/local/etc/redis" \
-    redis:7.2.5-alpine3.19 \
+    redis:6.2.18-bookworm \
     redis-server /usr/local/etc/redis/redis.conf

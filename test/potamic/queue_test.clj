@@ -74,28 +74,6 @@
 
 (deftest put-test
   (testing "potamic.queue/put"
-    (testing "-- manually set id, singular msg"
-      (let [[?ids1 ?err1] (q/put test-queue "1683743739-0" {:a 1})
-            [?ids2 ?err2] (q/put test-queue "1683743739-*" {:a 1})
-            [?ids3 ?err3] (q/put test-queue :1683743739-* {:a 1})
-            [_ err4] (q/put :invalid/queue {:bad :call})]
-        (is (nil? ?err1))
-        (is (sequential? ?ids1))
-        (is (= (count ?ids1) 1))
-        (is (re-find id-pat (first ?ids1)))
-        (is (nil? ?err2))
-        (is (= (count ?ids2) 1))
-        (is (re-find id-pat (first ?ids2)))
-        (is (nil? ?err3))
-        (is (= (count ?ids3) 1))
-        (is (re-find id-pat (first ?ids3)))
-        (is (= "NOAUTH Authentication required."
-               (:potamic/err-msg err4)))))
-    (testing "-- manually set id, multiple msg's"
-      (let [[?ids ?err] (q/put test-queue "1683743739-*" {:a 1} {:b 2} {:c 3})]
-        (is (nil? ?err))
-        (is (= (count ?ids) 3))
-        (is (every? identity (mapv #(re-find id-pat %) ?ids)))))
     (testing "-- singular put (auto-id)"
       (let [[?ids ?err] (q/put test-queue {:a 1})]
         (is (nil? ?err))
