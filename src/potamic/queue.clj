@@ -236,10 +236,6 @@
   _NOTE_: Because `put` can add more than one message, on success `?msg-ids`
   will always be a vector of ID strings, or `nil` on error.
 
-  _NOTE_: It is highly recommended to let Redis set the ID automatically.
-  However, if setting the ID, anything that will resolve via `name` is
-  acceptable. _As a reminder: numbers cannot be quoted._
-
   **Examples:**
 
   ```clojure
@@ -253,26 +249,12 @@
   (q/create-queue! :my/queue conn)
   ;= [true nil]
 
-  ;; let Redis set the ID (RECOMMENDED)
-  ;; (all of the following are identical, in effect)
+  ;; All of the following are identical, in effect
   (q/put :my/queue {:a 1 :b 2 :c 3})
   (q/put :my/queue :* {:a 1 :b 2 :c 3})
   (q/put :my/queue \"*\" {:a 1 :b 2 :c 3})
   (q/put :my/queue '* {:a 1 :b 2 :c 3})
   ;= [[\"1683660166747-0\"] nil]
-
-  ;; setting ID for a single message
-  (q/put :my/queue \"1683743739-0\" {:a 1})
-  ;= [[\"1683743739-0\"] nil]
-
-  ;; setting the ID for a single message using wildcard.
-  (q/put :my/queue \"1683743739-*\" {:a 1})
-  (q/put :my/queue :1683743739-* {:a 1})
-  ;= [[\"1683743739-1\"] nil]
-
-  ;; setting IDs for multi mode. the trailing `*` is required.
-  (q/put :my/queue \"1683743739-*\" {:a 1} {:b 2} {:c 3})
-  ;= [[\"1683743739-2\" \"1683743739-3\" \"1683743739-4\"] nil]
   ```
 
   See also:

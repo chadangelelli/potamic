@@ -204,7 +204,6 @@
 </ul>
 </div></div></div><div class="public anchor" id="var-put"><h3>put</h3><div class="usage"><code>(put queue-name &amp; xs)</code></div><div class="doc"><div class="markdown"><p>Put message(s) onto a queue. Returns vector of <code>[?msg-ids ?err]</code>.</p>
 <p><em>NOTE</em>: Because <code>put</code> can add more than one message, on success <code>?msg-ids</code> will always be a vector of ID strings, or <code>nil</code> on error.</p>
-<p><em>NOTE</em>: It is highly recommended to let Redis set the ID automatically. However, if setting the ID, anything that will resolve via <code>name</code> is acceptable. <em>As a reminder: numbers cannot be quoted.</em></p>
 <p><strong>Examples:</strong></p>
 <pre><code class="language-clojure">(require '[potamic.db :as db]
          '[potamic.queue :as q])
@@ -216,26 +215,12 @@
 (q/create-queue! :my/queue conn)
 ;= [true nil]
 
-;; let Redis set the ID (RECOMMENDED)
-;; (all of the following are identical, in effect)
+;; All of the following are identical, in effect
 (q/put :my/queue {:a 1 :b 2 :c 3})
 (q/put :my/queue :* {:a 1 :b 2 :c 3})
 (q/put :my/queue "*" {:a 1 :b 2 :c 3})
 (q/put :my/queue '* {:a 1 :b 2 :c 3})
 ;= [["1683660166747-0"] nil]
-
-;; setting ID for a single message
-(q/put :my/queue "1683743739-0" {:a 1})
-;= [["1683743739-0"] nil]
-
-;; setting the ID for a single message using wildcard.
-(q/put :my/queue "1683743739-*" {:a 1})
-(q/put :my/queue :1683743739-* {:a 1})
-;= [["1683743739-1"] nil]
-
-;; setting IDs for multi mode. the trailing `*` is required.
-(q/put :my/queue "1683743739-*" {:a 1} {:b 2} {:c 3})
-;= [["1683743739-2" "1683743739-3" "1683743739-4"] nil]
 </code></pre>
 <p>See also:</p>
 <ul>
